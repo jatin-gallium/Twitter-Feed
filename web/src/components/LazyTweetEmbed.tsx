@@ -8,9 +8,14 @@ import { tweetPermalink } from '@/lib/format'
 type Props = {
   url: string
   className?: string
+  theme?: 'light' | 'dark'
 }
 
-export function LazyTweetEmbed({ url, className = '' }: Props) {
+export function LazyTweetEmbed({
+  url,
+  className = '',
+  theme = 'light',
+}: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -57,7 +62,7 @@ export function LazyTweetEmbed({ url, className = '' }: Props) {
           setLoadError('Twitter embed script did not load.')
           return
         }
-        await tw.widgets.createTweet(tweetId, host, { theme: 'light' })
+        await tw.widgets.createTweet(tweetId, host, { theme })
         if (cancelled) return
         if (!host.querySelector('iframe')) {
           setLoadError('Tweet could not be embedded (private or deleted).')
@@ -71,7 +76,7 @@ export function LazyTweetEmbed({ url, className = '' }: Props) {
       cancelled = true
       host.innerHTML = ''
     }
-  }, [visible, tweetId])
+  }, [visible, tweetId, theme])
 
   return (
     <div ref={rootRef} className={className}>

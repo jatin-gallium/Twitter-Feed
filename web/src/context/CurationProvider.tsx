@@ -35,6 +35,10 @@ export function CurationProvider({ children }: { children: ReactNode }) {
     void saveSnapshot(snapshot)
   }, [snapshot, hydrated])
 
+  const replaceSnapshot = useCallback((snap: CurationSnapshot) => {
+    setSnapshot(snap)
+  }, [])
+
   const ingestJsonText = useCallback((text: string, sourceName?: string) => {
     const snap = parseTweetExportJson(text)
     setSnapshot(snap)
@@ -63,9 +67,18 @@ export function CurationProvider({ children }: { children: ReactNode }) {
       ingestJsonText,
       ingestFile,
       clear,
+      replaceSnapshot,
       lastSourceName,
     }),
-    [snapshot, hydrated, ingestJsonText, ingestFile, clear, lastSourceName],
+    [
+      snapshot,
+      hydrated,
+      ingestJsonText,
+      ingestFile,
+      clear,
+      replaceSnapshot,
+      lastSourceName,
+    ],
   )
 
   return (

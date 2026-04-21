@@ -1,9 +1,12 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useCuration } from '@/context/useCuration'
 import { formatCategoryLabel } from '@/lib/format'
 
 export function DashboardPage() {
-  const { snapshot, lastSourceName } = useCuration()
+  const navigate = useNavigate()
+  const { snapshot, lastSourceName, clear } = useCuration()
+  const [clearing, setClearing] = useState(false)
 
   const postCount = snapshot?.exportMeta.postCount ?? 0
   const catCount = snapshot?.categories.length ?? 0
@@ -49,13 +52,38 @@ export function DashboardPage() {
               </p>
             ) : null}
           </div>
-          <Link
-            to="/upload"
-            className="gradient-btn text-on-primary-fixed font-body font-medium text-sm px-6 py-3 rounded-full shadow-sm flex items-center gap-2 w-fit hover:opacity-95 transition-opacity"
-          >
-            <span className="material-symbols-outlined text-sm filled">add</span>
-            <span>Upload New Data</span>
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <Link
+              to="/upload"
+              className="gradient-btn text-on-primary-fixed font-body font-medium text-sm px-6 py-3 rounded-full shadow-sm flex items-center justify-center gap-2 hover:opacity-95 transition-opacity"
+            >
+              <span className="material-symbols-outlined text-sm filled">add</span>
+              <span>Upload New Data</span>
+            </Link>
+            {snapshot ? (
+              <button
+                type="button"
+                disabled={clearing}
+                onClick={() => {
+                  if (
+                    !window.confirm(
+                      'Clear all loaded data from this browser? This removes the archive, trash, and saved marks from local storage. This cannot be undone.',
+                    )
+                  )
+                    return
+                  setClearing(true)
+                  void clear().finally(() => {
+                    setClearing(false)
+                    navigate('/upload')
+                  })
+                }}
+                className="font-body font-medium text-sm px-6 py-3 rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-error-container/10 hover:text-error hover:border-error/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-sm">delete_sweep</span>
+                {clearing ? 'Clearing…' : 'Clear local data'}
+              </button>
+            ) : null}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8">

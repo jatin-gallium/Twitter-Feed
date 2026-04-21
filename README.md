@@ -22,7 +22,8 @@ npm run dev
 Your terminal will show a local URL, usually **http://localhost:5173**. Open that in your browser.
 
 - **Data Upload**: drop or select your export JSON (root object with a `posts` array, like `17 Apr 1.json` in this repo).
-- **Feed Explorer**: pick a stream, search, scroll; tweet embeds load as rows enter view. On desktop, use **minimize** on the main left nav (double chevron) or on the feed sidebar (chevron in the sidebar or split icon in the header) to widen the reading area; the choice is remembered for the browser tab (**sessionStorage**).
+- **Feed Explorer**: pick a stream, search, scroll; tweet embeds load as rows enter view. **Saved** tweets can include a **note** (stored in IndexedDB with the bookmark). **Trash** can be emptied (restore to feed) or **purged from archive** (removes those posts from the in-memory export and clears trash). On desktop: **hold** the floating up/down buttons to scroll the feed quickly; **compact density** and **2–3 column** grid show more at once; toggle **light/dark** for X embeds; **back to top** in the header. Sidebar minimize uses **sessionStorage**.
+- **Dashboard**: **Clear local data** removes the loaded archive and library state from this browser (with confirmation), then sends you to upload.
 - **Dashboard / Analytics**: summaries from the loaded file. Parsed data is stored in **IndexedDB** in your browser so a refresh keeps the last import (no backend server).
 
 ### Vercel and GitHub

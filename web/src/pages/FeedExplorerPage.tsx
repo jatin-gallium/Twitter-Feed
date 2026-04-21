@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCuration } from '@/context/useCuration'
 import { useTweetLibrary } from '@/context/useTweetLibrary'
 import { LazyTweetEmbed } from '@/components/LazyTweetEmbed'
+import { ScrollAssist } from '@/components/ScrollAssist'
 import { formatCategoryLabel, primaryCategory } from '@/lib/format'
 import {
   filterPostsBySearch,
@@ -10,20 +11,44 @@ import {
 } from '@/lib/parseExport'
 import type { TweetPost } from '@/types/export'
 import {
+  readEmbedTheme,
   readExplorerNavCollapsed,
+  readFeedDensity,
+  writeEmbedTheme,
   writeExplorerNavCollapsed,
+  writeFeedDensity,
+  type EmbedTheme,
+  type FeedDensity,
 } from '@/lib/layoutPrefs'
 
 const ALL = '__all__'
 
 export function FeedExplorerPage() {
   const { snapshot } = useCuration()
-  const { view, setView, savedIds, trashedIds, emptyTrash } = useTweetLibrary()
+  const {
+    view,
+    setView,
+    savedIds,
+    trashedIds,
+    saveNotes,
+    emptyTrash,
+    purgeTrashedFromArchive,
+    setSaveNote,
+    saveTweet,
+    isSaved,
+  } = useTweetLibrary()
   const [category, setCategory] = useState<string>(ALL)
   const [search, setSearch] = useState('')
   const [explorerNavCollapsed, setExplorerNavCollapsed] = useState(
     () => readExplorerNavCollapsed(),
   )
+  const feedScrollRef = useRef<HTMLElement | null>(null)
+  const [embedTheme, setEmbedTheme] = useState<EmbedTheme>(() => readEmbedTheme())
+  const [feedDensity, setFeedDensity] = useState<FeedDensity>(() =>
+    readFeedDensity(),
+  )
+  const [expandedText, setExpandedText] = useState<Set<string>>(() => new Set())
+  const [draftNotes, setDraftNotes] = useState<Record<string, string>>({})
 
   const toggleExplorerNav = useCallback(() => {
     setExplorerNavCollapsed((v) => {
@@ -32,6 +57,33 @@ export function FeedExplorerPage() {
       return next
     })
   }, [])
+
+  const toggleEmbedTheme = useCallback(() => {
+    setEmbedTheme((t) => {
+      const next: EmbedTheme = t === 'light' ? 'dark' : 'light'
+      writeEmbedTheme(next)
+      return next
+    })
+  }, [])
+
+  const toggleDensity = useCallback(() => {
+    setFeedDensity((d) => {
+      const next: FeedDensity = d === 'comfy' ? 'compact' : 'comfy'
+      writeFeedDensity(next)
+      return next
+    })
+  }, [])
+
+  const toggleTextExpand = useCallback((id: string) => {
+    setExpandedText((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const compact = feedDensity === 'compact'
 
   const effectiveCategory = useMemo(() => {
     if (!snapshot) return ALL
@@ -126,6 +178,49 @@ export function FeedExplorerPage() {
               {explorerNavCollapsed
                 ? 'dock_to_right'
                 : 'vertical_split'}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={toggleDensity}
+            className="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+            title={
+              compact
+                ? 'Density: compact — click for comfy'
+                : 'Density: comfy — click for compact'
+            }
+            aria-label="Toggle feed density"
+          >
+            <span className="material-symbols-outlined text-2xl">
+              {compact ? 'view_compact' : 'view_comfy'}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={toggleEmbedTheme}
+            className="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+            title={
+              embedTheme === 'dark'
+                ? 'Tweet embeds: dark — click for light'
+                : 'Tweet embeds: light — click for dark'
+            }
+            aria-label="Toggle tweet embed theme"
+          >
+            <span className="material-symbols-outlined text-2xl">
+              {embedTheme === 'dark' ? 'dark_mode' : 'light_mode'}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              feedScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+            }
+            className="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+            title="Back to top"
+            aria-label="Back to top"
+          >
+            <span className="material-symbols-outlined text-2xl">
+              vertical_align_top
             </span>
           </button>
           <span className="material-symbols-outlined text-on-surface-variant p-2">
@@ -367,8 +462,12 @@ export function FeedExplorerPage() {
           </div>
         </aside>
 
-        <section className="flex-1 overflow-y-auto no-scrollbar bg-background p-4 md:p-10 min-h-0">
-          <div className="max-w-2xl mx-auto pb-24">
+        <section
+          ref={feedScrollRef}
+          className="flex-1 overflow-y-auto no-scrollbar bg-background p-3 md:p-6 min-h-0 relative"
+        >
+          <ScrollAssist scrollRef={feedScrollRef} />
+          <div className="max-w-[2000px] mx-auto">
             <div className="mb-8 flex flex-wrap justify-between items-end gap-4">
               <div>
                 <h2 className="font-headline text-2xl md:text-3xl font-bold text-on-surface">
@@ -402,27 +501,76 @@ export function FeedExplorerPage() {
                 </p>
               </div>
               {view === 'trash' && trashedIds.size > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        'Remove all tweets from trash for this archive? They will reappear in the feed.',
+                <div className="flex flex-wrap gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          'Remove all tweets from trash for this archive? They will reappear in the feed.',
+                        )
                       )
-                    )
-                      emptyTrash()
-                  }}
-                  className="text-sm font-medium text-error hover:underline underline-offset-4"
-                >
-                  Empty trash
-                </button>
+                        emptyTrash()
+                    }}
+                    className="text-sm font-medium text-on-surface-variant hover:underline underline-offset-4"
+                  >
+                    Empty trash
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          `Permanently delete ${trashedIds.size} tweet(s) from this archive? They will be removed from the JSON in memory and cannot be restored.`,
+                        )
+                      )
+                        return
+                      purgeTrashedFromArchive()
+                    }}
+                    className="text-sm font-medium text-error hover:underline underline-offset-4"
+                  >
+                    Purge from archive
+                  </button>
+                </div>
               ) : null}
             </div>
 
-            <div className="space-y-8">
-              {filtered.map((post) => (
-                <TweetRow key={post.id} post={post} />
-              ))}
+            <div
+              className={`grid gap-4 md:gap-5 pb-24 ${
+                compact
+                  ? 'grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3'
+                  : 'grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3'
+              }`}
+            >
+              {filtered.map((post) => {
+                const persisted = saveNotes[post.id] ?? ''
+                const draft = draftNotes[post.id]
+                const noteValue =
+                  persisted || (draft !== undefined ? draft : '')
+                return (
+                  <TweetRow
+                    key={post.id}
+                    post={post}
+                    embedTheme={embedTheme}
+                    compact={compact}
+                    textExpanded={expandedText.has(post.id)}
+                    onToggleTextExpand={() => toggleTextExpand(post.id)}
+                    saveNoteDraft={noteValue}
+                    onSaveNoteChange={(note) => {
+                      if (isSaved(post.id)) setSaveNote(post.id, note)
+                      else setDraftNotes((d) => ({ ...d, [post.id]: note }))
+                    }}
+                    onSaveWithNote={(note) => {
+                      saveTweet(post.id, note)
+                      setDraftNotes((d) => {
+                        const next = { ...d }
+                        delete next[post.id]
+                        return next
+                      })
+                    }}
+                  />
+                )
+              })}
               {filtered.length === 0 ? (
                 <p className="text-center text-on-surface-variant text-sm py-12">
                   {view === 'saved'
@@ -440,20 +588,43 @@ export function FeedExplorerPage() {
   )
 }
 
-function TweetRow({ post }: { post: TweetPost }) {
-  const { view, isSaved, saveTweet, unsaveTweet, trashTweet, restoreTweet } =
+function TweetRow({
+  post,
+  embedTheme,
+  compact,
+  textExpanded,
+  onToggleTextExpand,
+  saveNoteDraft,
+  onSaveNoteChange,
+  onSaveWithNote,
+}: {
+  post: TweetPost
+  embedTheme: 'light' | 'dark'
+  compact: boolean
+  textExpanded: boolean
+  onToggleTextExpand: () => void
+  saveNoteDraft: string
+  onSaveNoteChange: (note: string) => void
+  onSaveWithNote: (note: string) => void
+}) {
+  const { view, isSaved, unsaveTweet, trashTweet, restoreTweet } =
     useTweetLibrary()
   const pc = primaryCategory(post.scores)
   const topScores = Object.entries(post.scores)
     .filter(([, v]) => v > 0)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 4)
+    .slice(0, compact ? 3 : 4)
 
   const saved = isSaved(post.id)
+  const pad = compact ? 'p-4' : 'p-6 md:p-7'
 
   return (
-    <article className="bg-surface-container-lowest rounded-xl p-6 md:p-8 ambient-shadow border border-outline-variant/10 relative group">
-      <div className="absolute top-4 right-4 md:top-6 md:right-6 flex items-center gap-1">
+    <article
+      className={`bg-surface-container-lowest rounded-xl ${pad} ambient-shadow border border-outline-variant/10 relative group flex flex-col min-h-0`}
+    >
+      <div
+        className={`absolute ${compact ? 'top-2 right-2' : 'top-3 right-3'} flex items-center gap-0.5`}
+      >
         {view === 'trash' ? (
           <button
             type="button"
@@ -469,7 +640,9 @@ function TweetRow({ post }: { post: TweetPost }) {
           <>
             <button
               type="button"
-              onClick={() => (saved ? unsaveTweet(post.id) : saveTweet(post.id))}
+              onClick={() =>
+                saved ? unsaveTweet(post.id) : onSaveWithNote(saveNoteDraft)
+              }
               className={`p-2 rounded-lg transition-colors ${
                 saved
                   ? 'text-primary bg-primary/10'
@@ -497,7 +670,7 @@ function TweetRow({ post }: { post: TweetPost }) {
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-3 pr-20">
+      <div className={`flex flex-wrap gap-1.5 mb-2 ${compact ? 'pr-16' : 'pr-20'}`}>
         {post.tags.map((t) => (
           <span
             key={t}
@@ -517,17 +690,51 @@ function TweetRow({ post }: { post: TweetPost }) {
           </span>
         ) : null}
       </div>
-      <p className="text-xs text-on-surface-variant mb-1 font-medium">
+      <p
+        className={`text-on-surface-variant mb-1 font-medium ${compact ? 'text-[11px]' : 'text-xs'}`}
+      >
         {post.author}
         {post.createdAt
           ? ` · ${new Date(post.createdAt).toLocaleString()}`
           : ''}
       </p>
-      <p className="text-on-surface font-body leading-relaxed text-[15px] line-clamp-6 mb-4">
+      <p
+        className={`text-on-surface font-body leading-relaxed mb-2 ${compact ? 'text-[13px]' : 'text-[15px]'} ${
+          textExpanded ? '' : compact ? 'line-clamp-3' : 'line-clamp-5'
+        }`}
+      >
         {post.text}
       </p>
+      {post.text.length > 120 ? (
+        <button
+          type="button"
+          onClick={onToggleTextExpand}
+          className="text-xs font-medium text-primary mb-2 hover:underline text-left"
+        >
+          {textExpanded ? 'Show less' : 'Show full text'}
+        </button>
+      ) : null}
+      {(view === 'saved' || (!saved && view !== 'trash')) && (
+        <label className="block mb-2">
+          <span className="sr-only">Save note</span>
+          <span className="text-[10px] uppercase tracking-wide text-on-surface-variant font-semibold block mb-1">
+            {view === 'saved'
+              ? 'Your note'
+              : 'Note (optional, saved with bookmark)'}
+          </span>
+          <textarea
+            value={saveNoteDraft}
+            onChange={(e) => onSaveNoteChange(e.target.value)}
+            rows={view === 'saved' ? 2 : 1}
+            placeholder="Why this matters…"
+            className="w-full text-xs rounded-lg border border-outline-variant/30 bg-surface-container-low px-2 py-1.5 text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/20 resize-y min-h-[2rem]"
+          />
+        </label>
+      )}
       {topScores.length > 0 ? (
-        <div className="flex flex-wrap gap-2 mb-4 text-[11px] text-on-surface-variant">
+        <div
+          className={`flex flex-wrap gap-1.5 mb-2 text-on-surface-variant ${compact ? 'text-[10px]' : 'text-[11px]'}`}
+        >
           {topScores.map(([k, v]) => (
             <span
               key={k}
@@ -538,7 +745,11 @@ function TweetRow({ post }: { post: TweetPost }) {
           ))}
         </div>
       ) : null}
-      <LazyTweetEmbed url={post.url} className="min-h-[120px]" />
+      <LazyTweetEmbed
+        url={post.url}
+        theme={embedTheme}
+        className="min-h-[100px] flex-1"
+      />
       <div className="mt-4 flex flex-wrap gap-3 text-xs">
         <a
           className="text-primary font-medium underline underline-offset-2"
