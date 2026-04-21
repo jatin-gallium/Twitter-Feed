@@ -185,7 +185,9 @@ export function FeedExplorerPage() {
             onClick={toggleDensity}
             className="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
             title={
-              compact ? 'Density: compact — click for comfy' : 'Density: comfy — click for compact'
+              compact
+                ? 'Density: compact — click for comfy'
+                : 'Density: comfy — click for compact'
             }
             aria-label="Toggle feed density"
           >
@@ -217,7 +219,9 @@ export function FeedExplorerPage() {
             title="Back to top"
             aria-label="Back to top"
           >
-            <span className="material-symbols-outlined text-2xl">vertical_align_top</span>
+            <span className="material-symbols-outlined text-2xl">
+              vertical_align_top
+            </span>
           </button>
           <span className="material-symbols-outlined text-on-surface-variant p-2">
             notifications
@@ -554,8 +558,7 @@ export function FeedExplorerPage() {
                     saveNoteDraft={noteValue}
                     onSaveNoteChange={(note) => {
                       if (isSaved(post.id)) setSaveNote(post.id, note)
-                      else
-                        setDraftNotes((d) => ({ ...d, [post.id]: note }))
+                      else setDraftNotes((d) => ({ ...d, [post.id]: note }))
                     }}
                     onSaveWithNote={(note) => {
                       saveTweet(post.id, note)
@@ -637,7 +640,9 @@ function TweetRow({
           <>
             <button
               type="button"
-              onClick={() => (saved ? unsaveTweet(post.id) : onSaveWithNote(saveNoteDraft))}
+              onClick={() =>
+                saved ? unsaveTweet(post.id) : onSaveWithNote(saveNoteDraft)
+              }
               className={`p-2 rounded-lg transition-colors ${
                 saved
                   ? 'text-primary bg-primary/10'
@@ -713,7 +718,9 @@ function TweetRow({
         <label className="block mb-2">
           <span className="sr-only">Save note</span>
           <span className="text-[10px] uppercase tracking-wide text-on-surface-variant font-semibold block mb-1">
-            {view === 'saved' ? 'Your note' : 'Note (optional, saved with bookmark)'}
+            {view === 'saved'
+              ? 'Your note'
+              : 'Note (optional, saved with bookmark)'}
           </span>
           <textarea
             value={saveNoteDraft}
