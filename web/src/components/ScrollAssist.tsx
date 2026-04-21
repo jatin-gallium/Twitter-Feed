@@ -1,22 +1,41 @@
-import { useCallback, useEffect, useRef, type RefObject } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+} from 'react'
 
 type Props = {
-  /** Ref to the scrollable feed column (`section` with overflow-y-auto). Same ref object avoids a stale null on first paint. */
+  /** Preferred scroll container (feed body). If it has no overflow, falls back to the document root. */
   scrollContainerRef: RefObject<HTMLElement | null>
-  /** Optional class on the wrapper; do not use `fixed` here — parent should be sticky in the scroll container. */
   className?: string
 }
 
-const STEP = 16
+const STEP = 48
+
+function pickScrollRoot(
+  containerRef: RefObject<HTMLElement | null>,
+): HTMLElement | null {
+  const el = containerRef.current
+  if (el) {
+    const innerMax = el.scrollHeight - el.clientHeight
+    if (innerMax > 1) return el
+  }
+  const doc = document.documentElement
+  const winMax = doc.scrollHeight - doc.clientHeight
+  if (winMax > 1) return doc
+  return el
+}
 
 /**
- * Hold-to-scroll controls. Must live **inside** the scrollable overflow ancestor
- * (e.g. under a sticky wrapper), not `position: fixed` inside the same scroller
- * — otherwise the buttons scroll away and `fixed` is relative to the wrong box.
+ * Hold-to-scroll: pointer capture keeps the gesture on the button; window-level
+ * listeners stop scrolling when the pointer is released anywhere.
  */
 export function ScrollAssist({ scrollContainerRef, className = '' }: Props) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const endListenerRef = useRef<(() => void) | null>(null)
+  const endListenerRef = useRef<((native: Event) => void) | null>(null)
+  const activePointerIdRef = useRef<number | null>(null)
 
   const clearScroll = useCallback(() => {
     if (intervalRef.current != null) {
@@ -28,48 +47,75 @@ export function ScrollAssist({ scrollContainerRef, className = '' }: Props) {
   const removeEndListeners = useCallback(() => {
     const fn = endListenerRef.current
     if (!fn) return
-    window.removeEventListener('mouseup', fn, true)
     window.removeEventListener('pointerup', fn, true)
     window.removeEventListener('pointercancel', fn, true)
+    window.removeEventListener('mouseup', fn, true)
     window.removeEventListener('touchend', fn, true)
     window.removeEventListener('touchcancel', fn, true)
     window.removeEventListener('blur', fn)
     endListenerRef.current = null
+    activePointerIdRef.current = null
   }, [])
 
   const beginScroll = useCallback(
     (dir: -1 | 1) => {
       clearScroll()
       const tick = () => {
-        const el = scrollContainerRef.current
-        if (!el) return
-        const max = el.scrollHeight - el.clientHeight
+        const root = pickScrollRoot(scrollContainerRef)
+        if (!root) return
+        const max = root.scrollHeight - root.clientHeight
         if (max <= 0) return
-        const next = el.scrollTop + dir * STEP
-        el.scrollTop = Math.max(0, Math.min(max, next))
+        const next = root.scrollTop + dir * STEP
+        root.scrollTop = Math.max(0, Math.min(max, next))
       }
       tick()
-      intervalRef.current = setInterval(tick, 16)
+      intervalRef.current = setInterval(tick, 32)
     },
     [clearScroll, scrollContainerRef],
   )
 
   const startHold = useCallback(
-    (dir: -1 | 1) => {
+    (dir: -1 | 1, ev: ReactPointerEvent<HTMLButtonElement>) => {
+      if (ev.pointerType === 'mouse' && ev.button !== 0) return
+
       removeEndListeners()
       clearScroll()
 
-      const end = () => {
+      const pointerId = ev.pointerId
+      activePointerIdRef.current = pointerId
+
+      const end = (native?: Event) => {
+        if (
+          native &&
+          'pointerId' in native &&
+          activePointerIdRef.current != null
+        ) {
+          const pid = (native as PointerEvent).pointerId
+          if (pid !== activePointerIdRef.current) return
+        }
         removeEndListeners()
         clearScroll()
+        try {
+          ev.currentTarget.releasePointerCapture(pointerId)
+        } catch {
+          /* not captured */
+        }
       }
-      endListenerRef.current = end
-      window.addEventListener('mouseup', end, true)
-      window.addEventListener('pointerup', end, true)
-      window.addEventListener('pointercancel', end, true)
-      window.addEventListener('touchend', end, true)
-      window.addEventListener('touchcancel', end, true)
-      window.addEventListener('blur', end)
+
+      const onWindowEnd = (native: Event) => end(native)
+      endListenerRef.current = onWindowEnd
+      window.addEventListener('pointerup', onWindowEnd, true)
+      window.addEventListener('pointercancel', onWindowEnd, true)
+      window.addEventListener('mouseup', onWindowEnd, true)
+      window.addEventListener('touchend', onWindowEnd, true)
+      window.addEventListener('touchcancel', onWindowEnd, true)
+      window.addEventListener('blur', onWindowEnd)
+
+      try {
+        ev.currentTarget.setPointerCapture(pointerId)
+      } catch {
+        /* touch / older browsers */
+      }
 
       beginScroll(dir)
     },
@@ -84,7 +130,7 @@ export function ScrollAssist({ scrollContainerRef, className = '' }: Props) {
   }, [removeEndListeners, clearScroll])
 
   const btnClass =
-    'h-10 w-10 rounded-full bg-primary text-on-primary shadow-md flex items-center justify-center select-none shrink-0 hover:opacity-95 active:scale-95'
+    'h-11 w-11 rounded-full bg-primary text-on-primary shadow-md flex items-center justify-center select-none shrink-0 hover:opacity-95 active:scale-95 touch-manipulation'
 
   return (
     <div className={`flex items-center gap-1 ${className}`}>
@@ -93,14 +139,10 @@ export function ScrollAssist({ scrollContainerRef, className = '' }: Props) {
         className={btnClass}
         title="Hold to scroll up"
         aria-label="Hold to scroll feed up"
-        onMouseDown={(e) => {
+        onPointerDown={(e) => {
           e.preventDefault()
           e.stopPropagation()
-          startHold(-1)
-        }}
-        onTouchStart={(e) => {
-          e.stopPropagation()
-          startHold(-1)
+          startHold(-1, e)
         }}
       >
         <span className="material-symbols-outlined text-xl pointer-events-none">
@@ -112,14 +154,10 @@ export function ScrollAssist({ scrollContainerRef, className = '' }: Props) {
         className={btnClass}
         title="Hold to scroll down"
         aria-label="Hold to scroll feed down"
-        onMouseDown={(e) => {
+        onPointerDown={(e) => {
           e.preventDefault()
           e.stopPropagation()
-          startHold(1)
-        }}
-        onTouchStart={(e) => {
-          e.stopPropagation()
-          startHold(1)
+          startHold(1, e)
         }}
       >
         <span className="material-symbols-outlined text-xl pointer-events-none">

@@ -475,12 +475,9 @@ export function FeedExplorerPage() {
           ) : null}
         </aside>
 
-        <section
-          ref={feedScrollRef}
-          className="flex-1 overflow-y-auto no-scrollbar bg-background p-3 md:p-6 min-h-0 relative"
-        >
-          <div className="sticky top-0 z-20 -mx-3 md:-mx-6 px-3 md:px-6 mb-3 md:mb-4">
-            <div className="pointer-events-auto glass-header rounded-xl border border-outline-variant/10 shadow-[0_8px_32px_rgba(5,52,92,0.08)] px-3 py-2.5 md:px-4 md:py-3">
+        <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-background">
+          <div className="flex-shrink-0 z-30 px-3 pt-3 md:px-6 md:pt-6 pb-2 md:pb-3 border-b border-outline-variant/10 bg-background">
+            <div className="glass-header rounded-xl border border-outline-variant/10 shadow-[0_8px_32px_rgba(5,52,92,0.08)] px-3 py-2.5 md:px-4 md:py-3">
               {feedTopChrome === 'full' ? (
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-3">
                   <div className="relative w-full md:flex-1 md:min-w-0 ghost-border bg-surface-container-lowest rounded-full transition-all">
@@ -618,7 +615,11 @@ export function FeedExplorerPage() {
               )}
             </div>
           </div>
-          <div className="max-w-[2000px] mx-auto">
+          <section
+            ref={feedScrollRef}
+            className="flex-1 overflow-y-auto no-scrollbar px-3 pt-4 pb-3 md:px-6 md:pt-6 md:pb-6 min-h-0 relative"
+          >
+            <div className="max-w-[2000px] mx-auto">
             <div className="mb-8 flex flex-wrap justify-between items-end gap-4">
               <div>
                 <h2 className="font-headline text-2xl md:text-3xl font-bold text-on-surface">
@@ -743,8 +744,9 @@ export function FeedExplorerPage() {
                 </p>
               ) : null}
             </div>
-          </div>
-        </section>
+            </div>
+          </section>
+        </div>
       </div>
     </main>
   )
