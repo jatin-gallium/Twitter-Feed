@@ -1,6 +1,6 @@
 import { createContext } from 'react'
 
-export type LibraryView = 'default' | 'saved' | 'trash'
+export type LibraryView = 'default' | 'saved' | 'trash' | 'forever'
 
 export type TweetLibraryContextValue = {
   hydrated: boolean

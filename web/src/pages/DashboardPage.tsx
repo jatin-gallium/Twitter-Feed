@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCuration } from '@/context/useCuration'
+import { useForeverLibrary } from '@/context/useForeverLibrary'
 import { formatCategoryLabel } from '@/lib/format'
 
 export function DashboardPage() {
   const navigate = useNavigate()
   const { snapshot, lastSourceName, clear } = useCuration()
+  const { foreverCount, clearAllForever } = useForeverLibrary()
   const [clearing, setClearing] = useState(false)
 
   const postCount = snapshot?.exportMeta.postCount ?? 0
@@ -67,7 +69,7 @@ export function DashboardPage() {
                 onClick={() => {
                   if (
                     !window.confirm(
-                      'Clear all loaded data from this browser? This removes the archive, trash, and saved marks from local storage. This cannot be undone.',
+                      'Clear all loaded data from this browser? This removes the current archive, trash, and session bookmarks from local storage. Forever pins are kept unless you clear them separately below.',
                     )
                   )
                     return
@@ -142,6 +144,39 @@ export function DashboardPage() {
                 Browse by stream and search within the loaded archive.
               </p>
             </Link>
+            <div className="bg-surface-container-low rounded-xl p-8 border border-outline-variant/10">
+              <h3 className="font-headline text-xs font-semibold tracking-widest uppercase text-on-surface-variant mb-2 flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm filled">
+                  keep
+                </span>
+                Forever library
+              </h3>
+              <div className="font-headline text-3xl font-bold text-on-surface">
+                {foreverCount.toLocaleString()}
+              </div>
+              <p className="font-body text-sm text-on-surface-variant mt-2">
+                Tweets you pin with Keep stay in this browser across new JSON
+                uploads. Open Feed Explorer → sidebar{' '}
+                <strong>Forever</strong> to browse them.
+              </p>
+              {foreverCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        `Remove all ${foreverCount} Forever pin(s)? This cannot be undone.`,
+                      )
+                    )
+                      return
+                    clearAllForever()
+                  }}
+                  className="mt-4 text-sm font-medium text-error hover:underline underline-offset-4"
+                >
+                  Clear all Forever pins
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div className="col-span-1 md:col-span-12 bg-surface-container-lowest rounded-xl p-8 ambient-shadow">

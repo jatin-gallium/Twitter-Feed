@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCuration } from '@/context/useCuration'
 import { useTweetLibrary } from '@/context/useTweetLibrary'
+import { useForeverLibrary } from '@/context/useForeverLibrary'
 import { LazyTweetEmbed } from '@/components/LazyTweetEmbed'
 import { ScrollAssist } from '@/components/ScrollAssist'
 import { formatCategoryLabel, primaryCategory } from '@/lib/format'
@@ -37,6 +38,11 @@ export function FeedExplorerPage() {
     saveTweet,
     isSaved,
   } = useTweetLibrary()
+  const {
+    foreverPosts,
+    foreverCount,
+    foreverNotes: globalForeverNotes,
+  } = useForeverLibrary()
   const [category, setCategory] = useState<string>(ALL)
   const [search, setSearch] = useState('')
   const [explorerNavCollapsed, setExplorerNavCollapsed] = useState(
@@ -104,6 +110,9 @@ export function FeedExplorerPage() {
   }, [snapshot, effectiveCategory, search])
 
   const filtered = useMemo(() => {
+    if (view === 'forever') {
+      return filterPostsBySearch(foreverPosts, search)
+    }
     if (view === 'saved') {
       return streamFiltered.filter(
         (p) => savedIds.has(p.id) && !trashedIds.has(p.id),
@@ -113,9 +122,9 @@ export function FeedExplorerPage() {
       return streamFiltered.filter((p) => trashedIds.has(p.id))
     }
     return streamFiltered.filter((p) => !trashedIds.has(p.id))
-  }, [streamFiltered, view, savedIds, trashedIds])
+  }, [streamFiltered, view, savedIds, trashedIds, foreverPosts, search])
 
-  if (!snapshot) {
+  if (!snapshot && view !== 'forever') {
     return (
       <main className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[60vh]">
         <h2 className="font-headline text-2xl font-bold text-on-surface mb-3">
@@ -123,6 +132,8 @@ export function FeedExplorerPage() {
         </h2>
         <p className="text-on-surface-variant max-w-md mb-6">
           Upload your JSON export first, then return here to explore streams.
+          You can still open <strong>Forever</strong> in the sidebar to see pins
+          without loading a file.
         </p>
         <Link
           to="/upload"
@@ -135,13 +146,15 @@ export function FeedExplorerPage() {
   }
 
   const streamTitle =
-    view === 'saved'
-      ? 'Saved'
-      : view === 'trash'
-        ? 'Trash'
-        : effectiveCategory === ALL
-          ? 'Full archive'
-          : formatCategoryLabel(effectiveCategory)
+    view === 'forever'
+      ? 'Forever'
+      : view === 'saved'
+        ? 'Saved'
+        : view === 'trash'
+          ? 'Trash'
+          : effectiveCategory === ALL
+            ? 'Full archive'
+            : formatCategoryLabel(effectiveCategory)
 
   return (
     <main className="flex-1 flex flex-col h-[calc(100dvh-56px)] md:h-screen overflow-hidden bg-background">
@@ -274,14 +287,17 @@ export function FeedExplorerPage() {
             <li className="md:w-full">
               <button
                 type="button"
-                onClick={() => setView('default')}
-                title="Feed"
+                disabled={!snapshot}
+                onClick={() => snapshot && setView('default')}
+                title={snapshot ? 'Feed' : 'Load an archive first'}
                 className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap md:whitespace-normal flex md:items-center gap-2 ${
                   explorerNavCollapsed ? 'md:justify-center md:px-2' : ''
                 } ${
-                  view === 'default'
-                    ? 'bg-surface-container-lowest text-primary ambient-shadow'
-                    : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
+                  !snapshot
+                    ? 'opacity-40 cursor-not-allowed'
+                    : view === 'default'
+                      ? 'bg-surface-container-lowest text-primary ambient-shadow'
+                      : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
                 }`}
               >
                 <span
@@ -301,14 +317,21 @@ export function FeedExplorerPage() {
             <li className="md:w-full">
               <button
                 type="button"
-                onClick={() => setView('saved')}
-                title={`Saved (${savedIds.size})`}
+                disabled={!snapshot}
+                onClick={() => snapshot && setView('saved')}
+                title={
+                  snapshot
+                    ? `Saved (${savedIds.size})`
+                    : 'Load an archive first'
+                }
                 className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-between gap-2 whitespace-nowrap md:whitespace-normal ${
                   explorerNavCollapsed ? 'md:justify-center md:px-2' : ''
                 } ${
-                  view === 'saved'
-                    ? 'bg-surface-container-lowest text-primary ambient-shadow'
-                    : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
+                  !snapshot
+                    ? 'opacity-40 cursor-not-allowed'
+                    : view === 'saved'
+                      ? 'bg-surface-container-lowest text-primary ambient-shadow'
+                      : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
                 }`}
               >
                 <span
@@ -339,14 +362,21 @@ export function FeedExplorerPage() {
             <li className="md:w-full">
               <button
                 type="button"
-                onClick={() => setView('trash')}
-                title={`Trash (${trashedIds.size})`}
+                disabled={!snapshot}
+                onClick={() => snapshot && setView('trash')}
+                title={
+                  snapshot
+                    ? `Trash (${trashedIds.size})`
+                    : 'Load an archive first'
+                }
                 className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-between gap-2 whitespace-nowrap md:whitespace-normal ${
                   explorerNavCollapsed ? 'md:justify-center md:px-2' : ''
                 } ${
-                  view === 'trash'
-                    ? 'bg-surface-container-lowest text-primary ambient-shadow'
-                    : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
+                  !snapshot
+                    ? 'opacity-40 cursor-not-allowed'
+                    : view === 'trash'
+                      ? 'bg-surface-container-lowest text-primary ambient-shadow'
+                      : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
                 }`}
               >
                 <span
@@ -372,106 +402,148 @@ export function FeedExplorerPage() {
                 )}
               </button>
             </li>
-          </ul>
-
-          <h2
-            className={`hidden md:block font-headline text-xs tracking-[0.05em] uppercase text-on-surface-variant font-semibold ${
-              explorerNavCollapsed ? 'sr-only' : 'mb-4'
-            }`}
-          >
-            Curated streams
-          </h2>
-          <ul className="flex md:flex-col gap-1 min-w-max md:min-w-0 pb-1 md:pb-0">
             <li className="md:w-full">
               <button
                 type="button"
-                onClick={() => setCategory(ALL)}
-                title="All posts"
-                className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap md:whitespace-normal flex md:items-center gap-2 ${
+                onClick={() => setView('forever')}
+                title={`Forever (${foreverCount}) — kept across uploads`}
+                className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-between gap-2 whitespace-nowrap md:whitespace-normal ${
                   explorerNavCollapsed ? 'md:justify-center md:px-2' : ''
                 } ${
-                  effectiveCategory === ALL
+                  view === 'forever'
                     ? 'bg-surface-container-lowest text-primary ambient-shadow'
                     : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
                 }`}
               >
                 <span
                   className={`material-symbols-outlined text-[20px] shrink-0 ${
-                    explorerNavCollapsed ? 'inline' : 'max-md:inline md:hidden'
+                    explorerNavCollapsed ? 'inline filled' : 'max-md:inline md:hidden filled'
                   }`}
                 >
-                  stacks
+                  keep
                 </span>
                 {explorerNavCollapsed ? (
-                  <span className="sr-only">All posts</span>
+                  <span className="sr-only">
+                    Forever ({foreverCount})
+                  </span>
                 ) : (
-                  <span className="max-md:inline md:inline">All posts</span>
+                  <>
+                    <span className="max-md:inline md:inline flex-1 text-left md:flex-none">
+                      Forever
+                    </span>
+                    <span className="max-md:inline md:inline text-xs font-semibold tabular-nums opacity-80">
+                      {foreverCount}
+                    </span>
+                  </>
                 )}
               </button>
             </li>
-            {snapshot.categories.map((c) => (
-              <li key={c} className="md:w-full">
-                <button
-                  type="button"
-                  onClick={() => setCategory(c)}
-                  title={formatCategoryLabel(c)}
-                  className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap md:whitespace-normal flex md:items-center gap-2 ${
-                    explorerNavCollapsed ? 'md:justify-center md:px-2' : ''
-                  } ${
-                    effectiveCategory === c
-                      ? 'bg-surface-container-lowest text-primary ambient-shadow'
-                      : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
-                  }`}
-                >
-                  <span
-                    className={`material-symbols-outlined text-[20px] shrink-0 ${
-                      explorerNavCollapsed ? 'inline' : 'max-md:inline md:hidden'
-                    }`}
-                  >
-                    label
-                  </span>
-                  {explorerNavCollapsed ? (
-                    <span className="sr-only">{formatCategoryLabel(c)}</span>
-                  ) : (
-                    <span className="max-md:inline md:inline truncate">
-                      {formatCategoryLabel(c)}
-                    </span>
-                  )}
-                </button>
-              </li>
-            ))}
           </ul>
 
-          <h2
-            className={`hidden md:block font-headline text-xs tracking-[0.05em] uppercase text-on-surface-variant font-semibold ${
-              explorerNavCollapsed ? 'sr-only' : 'mt-8 mb-3'
-            }`}
-          >
-            Active filters
-          </h2>
-          <div
-            className={`hidden md:flex flex-wrap gap-2 ${
-              explorerNavCollapsed ? 'flex-col items-center' : ''
-            }`}
-          >
-            {search.trim() ? (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-surface-container-high text-on-surface-variant">
-                Query: {search.trim()}
-                <button
-                  type="button"
-                  className="ml-1 focus:outline-none"
-                  aria-label="Clear search"
-                  onClick={() => setSearch('')}
-                >
-                  <span className="material-symbols-outlined text-[14px]">
-                    close
+          {snapshot ? (
+            <>
+              <h2
+                className={`hidden md:block font-headline text-xs tracking-[0.05em] uppercase text-on-surface-variant font-semibold ${
+                  explorerNavCollapsed ? 'sr-only' : 'mb-4'
+                }`}
+              >
+                Curated streams
+              </h2>
+              <ul className="flex md:flex-col gap-1 min-w-max md:min-w-0 pb-1 md:pb-0">
+                <li className="md:w-full">
+                  <button
+                    type="button"
+                    onClick={() => setCategory(ALL)}
+                    title="All posts"
+                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap md:whitespace-normal flex md:items-center gap-2 ${
+                      explorerNavCollapsed ? 'md:justify-center md:px-2' : ''
+                    } ${
+                      effectiveCategory === ALL
+                        ? 'bg-surface-container-lowest text-primary ambient-shadow'
+                        : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
+                    }`}
+                  >
+                    <span
+                      className={`material-symbols-outlined text-[20px] shrink-0 ${
+                        explorerNavCollapsed ? 'inline' : 'max-md:inline md:hidden'
+                      }`}
+                    >
+                      stacks
+                    </span>
+                    {explorerNavCollapsed ? (
+                      <span className="sr-only">All posts</span>
+                    ) : (
+                      <span className="max-md:inline md:inline">All posts</span>
+                    )}
+                  </button>
+                </li>
+                {snapshot.categories.map((c) => (
+                  <li key={c} className="md:w-full">
+                    <button
+                      type="button"
+                      onClick={() => setCategory(c)}
+                      title={formatCategoryLabel(c)}
+                      className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap md:whitespace-normal flex md:items-center gap-2 ${
+                        explorerNavCollapsed ? 'md:justify-center md:px-2' : ''
+                      } ${
+                        effectiveCategory === c
+                          ? 'bg-surface-container-lowest text-primary ambient-shadow'
+                          : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
+                      }`}
+                    >
+                      <span
+                        className={`material-symbols-outlined text-[20px] shrink-0 ${
+                          explorerNavCollapsed
+                            ? 'inline'
+                            : 'max-md:inline md:hidden'
+                        }`}
+                      >
+                        label
+                      </span>
+                      {explorerNavCollapsed ? (
+                        <span className="sr-only">{formatCategoryLabel(c)}</span>
+                      ) : (
+                        <span className="max-md:inline md:inline truncate">
+                          {formatCategoryLabel(c)}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+
+              <h2
+                className={`hidden md:block font-headline text-xs tracking-[0.05em] uppercase text-on-surface-variant font-semibold ${
+                  explorerNavCollapsed ? 'sr-only' : 'mt-8 mb-3'
+                }`}
+              >
+                Active filters
+              </h2>
+              <div
+                className={`hidden md:flex flex-wrap gap-2 ${
+                  explorerNavCollapsed ? 'flex-col items-center' : ''
+                }`}
+              >
+                {search.trim() ? (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-surface-container-high text-on-surface-variant">
+                    Query: {search.trim()}
+                    <button
+                      type="button"
+                      className="ml-1 focus:outline-none"
+                      aria-label="Clear search"
+                      onClick={() => setSearch('')}
+                    >
+                      <span className="material-symbols-outlined text-[14px]">
+                        close
+                      </span>
+                    </button>
                   </span>
-                </button>
-              </span>
-            ) : (
-              <span className="text-xs text-on-surface-variant">None</span>
-            )}
-          </div>
+                ) : (
+                  <span className="text-xs text-on-surface-variant">None</span>
+                )}
+              </div>
+            </>
+          ) : null}
         </aside>
 
         <section
@@ -489,7 +561,7 @@ export function FeedExplorerPage() {
                   {streamTitle}
                 </h2>
                 <p className="text-sm text-on-surface-variant mt-2 font-body">
-                  {view === 'default' && (
+                  {view === 'default' && snapshot && (
                     <>
                       Showing {filtered.length.toLocaleString()} visible posts
                       {effectiveCategory === ALL ? '' : ' in this stream'}
@@ -511,6 +583,12 @@ export function FeedExplorerPage() {
                     <>
                       {filtered.length.toLocaleString()} in trash for this
                       stream. Restore to return to the feed.
+                    </>
+                  )}
+                  {view === 'forever' && (
+                    <>
+                      {filtered.length.toLocaleString()} pinned forever in this
+                      browser (survives new uploads). Search filters this list.
                     </>
                   )}
                 </p>
@@ -562,6 +640,8 @@ export function FeedExplorerPage() {
                 const draft = draftNotes[post.id]
                 const noteValue =
                   persisted || (draft !== undefined ? draft : '')
+                const foreverNote =
+                  globalForeverNotes[post.id] ?? ''
                 return (
                   <TweetRow
                     key={post.id}
@@ -571,6 +651,7 @@ export function FeedExplorerPage() {
                     textExpanded={expandedText.has(post.id)}
                     onToggleTextExpand={() => toggleTextExpand(post.id)}
                     saveNoteDraft={noteValue}
+                    foreverNoteDraft={foreverNote}
                     onSaveNoteChange={(note) => {
                       if (isSaved(post.id)) setSaveNote(post.id, note)
                       else setDraftNotes((d) => ({ ...d, [post.id]: note }))
@@ -588,11 +669,13 @@ export function FeedExplorerPage() {
               })}
               {filtered.length === 0 ? (
                 <p className="text-center text-on-surface-variant text-sm py-12">
-                  {view === 'saved'
-                    ? 'No saved tweets match this stream and search.'
-                    : view === 'trash'
-                      ? 'Trash is empty for this stream.'
-                      : 'No posts match this stream and search.'}
+                  {view === 'forever'
+                    ? 'Nothing pinned yet. Use Keep on a tweet to save it here forever.'
+                    : view === 'saved'
+                      ? 'No saved tweets match this stream and search.'
+                      : view === 'trash'
+                        ? 'Trash is empty for this stream.'
+                        : 'No posts match this stream and search.'}
                 </p>
               ) : null}
             </div>
@@ -610,6 +693,7 @@ function TweetRow({
   textExpanded,
   onToggleTextExpand,
   saveNoteDraft,
+  foreverNoteDraft,
   onSaveNoteChange,
   onSaveWithNote,
 }: {
@@ -619,11 +703,19 @@ function TweetRow({
   textExpanded: boolean
   onToggleTextExpand: () => void
   saveNoteDraft: string
+  foreverNoteDraft: string
   onSaveNoteChange: (note: string) => void
   onSaveWithNote: (note: string) => void
 }) {
   const { view, isSaved, unsaveTweet, trashTweet, restoreTweet } =
     useTweetLibrary()
+  const {
+    isForeverPinned,
+    pinForever,
+    unpinForever,
+    setForeverNote,
+  } = useForeverLibrary()
+  const forever = isForeverPinned(post.id)
   const pc = primaryCategory(post.scores)
   const topScores = Object.entries(post.scores)
     .filter(([, v]) => v > 0)
@@ -638,7 +730,7 @@ function TweetRow({
       className={`bg-surface-container-lowest rounded-xl ${pad} ambient-shadow border border-outline-variant/10 relative group flex flex-col min-h-0`}
     >
       <div
-        className={`absolute ${compact ? 'top-2 right-2' : 'top-3 right-3'} flex items-center gap-0.5`}
+        className={`absolute ${compact ? 'top-2 right-2' : 'top-3 right-3'} flex items-center gap-0.5 flex-wrap justify-end max-w-[min(100%,11rem)]`}
       >
         {view === 'trash' ? (
           <button
@@ -651,8 +743,50 @@ function TweetRow({
               undo
             </span>
           </button>
+        ) : view === 'forever' ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (
+                window.confirm(
+                  'Remove this tweet from Forever? It stays in any current archive until you trash it there.',
+                )
+              )
+                unpinForever(post.id)
+            }}
+            className="p-2 rounded-lg text-on-surface-variant hover:bg-error-container/15 hover:text-error transition-colors"
+            title="Remove from Forever"
+          >
+            <span className="material-symbols-outlined text-[22px]">
+              keep_off
+            </span>
+          </button>
         ) : (
           <>
+            <button
+              type="button"
+              onClick={() =>
+                forever
+                  ? unpinForever(post.id)
+                  : pinForever(post, saveNoteDraft || foreverNoteDraft)
+              }
+              className={`p-2 rounded-lg transition-colors ${
+                forever
+                  ? 'text-tertiary bg-tertiary-container/40'
+                  : 'text-on-surface-variant hover:bg-surface-container-low hover:text-tertiary'
+              }`}
+              title={
+                forever
+                  ? 'Remove from Forever (keeps in this archive)'
+                  : 'Keep forever — survives new uploads'
+              }
+            >
+              <span
+                className={`material-symbols-outlined text-[22px] ${forever ? 'filled' : ''}`}
+              >
+                keep
+              </span>
+            </button>
             <button
               type="button"
               onClick={() =>
@@ -699,9 +833,14 @@ function TweetRow({
             Top: {formatCategoryLabel(pc)}
           </span>
         ) : null}
-        {saved && view !== 'saved' ? (
+        {saved && view !== 'saved' && view !== 'forever' ? (
           <span className="inline-block px-2.5 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-medium">
             Saved
+          </span>
+        ) : null}
+        {forever && view !== 'forever' ? (
+          <span className="inline-block px-2.5 py-0.5 rounded-full bg-tertiary-container/80 text-tertiary text-xs font-medium">
+            Forever
           </span>
         ) : null}
       </div>
@@ -729,7 +868,8 @@ function TweetRow({
           {textExpanded ? 'Show less' : 'Show full text'}
         </button>
       ) : null}
-      {(view === 'saved' || (!saved && view !== 'trash')) && (
+      {(view === 'saved' ||
+        (!saved && view !== 'trash' && view !== 'forever')) && (
         <label className="block mb-2">
           <span className="sr-only">Save note</span>
           <span className="text-[10px] uppercase tracking-wide text-on-surface-variant font-semibold block mb-1">
@@ -743,6 +883,20 @@ function TweetRow({
             rows={view === 'saved' ? 2 : 1}
             placeholder="Why this matters…"
             className="w-full text-xs rounded-lg border border-outline-variant/30 bg-surface-container-low px-2 py-1.5 text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/20 resize-y min-h-[2rem]"
+          />
+        </label>
+      )}
+      {view === 'forever' && (
+        <label className="block mb-2">
+          <span className="text-[10px] uppercase tracking-wide text-on-surface-variant font-semibold block mb-1">
+            Forever note
+          </span>
+          <textarea
+            value={foreverNoteDraft}
+            onChange={(e) => setForeverNote(post.id, e.target.value)}
+            rows={2}
+            placeholder="Why you kept this…"
+            className="w-full text-xs rounded-lg border border-outline-variant/30 bg-surface-container-low px-2 py-1.5 text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-tertiary/25 resize-y min-h-[2rem]"
           />
         </label>
       )}
