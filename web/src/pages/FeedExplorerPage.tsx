@@ -43,6 +43,7 @@ export function FeedExplorerPage() {
     () => readExplorerNavCollapsed(),
   )
   const feedScrollRef = useRef<HTMLElement | null>(null)
+  const [feedScrollEl, setFeedScrollEl] = useState<HTMLElement | null>(null)
   const [embedTheme, setEmbedTheme] = useState<EmbedTheme>(() => readEmbedTheme())
   const [feedDensity, setFeedDensity] = useState<FeedDensity>(() =>
     readFeedDensity(),
@@ -283,17 +284,18 @@ export function FeedExplorerPage() {
                     : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
                 }`}
               >
-                <span className="material-symbols-outlined text-[20px] shrink-0 md:hidden">
+                <span
+                  className={`material-symbols-outlined text-[20px] shrink-0 ${
+                    explorerNavCollapsed ? 'inline' : 'max-md:inline md:hidden'
+                  }`}
+                >
                   dynamic_feed
                 </span>
-                <span className={explorerNavCollapsed ? 'md:sr-only' : ''}>
-                  Feed
-                </span>
                 {explorerNavCollapsed ? (
-                  <span className="material-symbols-outlined text-[20px] shrink-0 hidden md:inline">
-                    dynamic_feed
-                  </span>
-                ) : null}
+                  <span className="sr-only">Feed</span>
+                ) : (
+                  <span className="max-md:inline md:inline">Feed</span>
+                )}
               </button>
             </li>
             <li className="md:w-full">
@@ -309,24 +311,29 @@ export function FeedExplorerPage() {
                     : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
                 }`}
               >
-                <span className="material-symbols-outlined text-[20px] shrink-0 md:hidden">
-                  bookmark
-                </span>
-                <span className={explorerNavCollapsed ? 'md:sr-only' : ''}>
-                  Saved
-                </span>
                 <span
-                  className={`text-xs font-semibold tabular-nums opacity-80 ${
-                    explorerNavCollapsed ? 'md:sr-only' : ''
+                  className={`material-symbols-outlined text-[20px] shrink-0 ${
+                    explorerNavCollapsed
+                      ? `inline ${view === 'saved' ? 'filled text-primary' : ''}`
+                      : `max-md:inline md:hidden ${view === 'saved' ? 'filled text-primary' : ''}`
                   }`}
                 >
-                  {savedIds.size}
+                  bookmark
                 </span>
                 {explorerNavCollapsed ? (
-                  <span className="material-symbols-outlined text-[20px] shrink-0 hidden md:inline filled text-primary">
-                    bookmark
+                  <span className="sr-only">
+                    Saved ({savedIds.size})
                   </span>
-                ) : null}
+                ) : (
+                  <>
+                    <span className="max-md:inline md:inline flex-1 text-left md:flex-none">
+                      Saved
+                    </span>
+                    <span className="max-md:inline md:inline text-xs font-semibold tabular-nums opacity-80">
+                      {savedIds.size}
+                    </span>
+                  </>
+                )}
               </button>
             </li>
             <li className="md:w-full">
@@ -342,24 +349,27 @@ export function FeedExplorerPage() {
                     : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
                 }`}
               >
-                <span className="material-symbols-outlined text-[20px] shrink-0 md:hidden">
-                  delete
-                </span>
-                <span className={explorerNavCollapsed ? 'md:sr-only' : ''}>
-                  Trash
-                </span>
                 <span
-                  className={`text-xs font-semibold tabular-nums opacity-80 ${
-                    explorerNavCollapsed ? 'md:sr-only' : ''
+                  className={`material-symbols-outlined text-[20px] shrink-0 ${
+                    explorerNavCollapsed ? 'inline' : 'max-md:inline md:hidden'
                   }`}
                 >
-                  {trashedIds.size}
+                  delete
                 </span>
                 {explorerNavCollapsed ? (
-                  <span className="material-symbols-outlined text-[20px] shrink-0 hidden md:inline">
-                    delete
+                  <span className="sr-only">
+                    Trash ({trashedIds.size})
                   </span>
-                ) : null}
+                ) : (
+                  <>
+                    <span className="max-md:inline md:inline flex-1 text-left md:flex-none">
+                      Trash
+                    </span>
+                    <span className="max-md:inline md:inline text-xs font-semibold tabular-nums opacity-80">
+                      {trashedIds.size}
+                    </span>
+                  </>
+                )}
               </button>
             </li>
           </ul>
@@ -385,17 +395,18 @@ export function FeedExplorerPage() {
                     : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
                 }`}
               >
-                <span className="material-symbols-outlined text-[20px] shrink-0 md:hidden">
+                <span
+                  className={`material-symbols-outlined text-[20px] shrink-0 ${
+                    explorerNavCollapsed ? 'inline' : 'max-md:inline md:hidden'
+                  }`}
+                >
                   stacks
                 </span>
-                <span className={explorerNavCollapsed ? 'md:sr-only' : ''}>
-                  All posts
-                </span>
                 {explorerNavCollapsed ? (
-                  <span className="material-symbols-outlined text-[20px] shrink-0 hidden md:inline">
-                    stacks
-                  </span>
-                ) : null}
+                  <span className="sr-only">All posts</span>
+                ) : (
+                  <span className="max-md:inline md:inline">All posts</span>
+                )}
               </button>
             </li>
             {snapshot.categories.map((c) => (
@@ -412,19 +423,20 @@ export function FeedExplorerPage() {
                       : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[20px] shrink-0 md:hidden">
+                  <span
+                    className={`material-symbols-outlined text-[20px] shrink-0 ${
+                      explorerNavCollapsed ? 'inline' : 'max-md:inline md:hidden'
+                    }`}
+                  >
                     label
                   </span>
-                  <span
-                    className={`truncate ${explorerNavCollapsed ? 'md:sr-only' : ''}`}
-                  >
-                    {formatCategoryLabel(c)}
-                  </span>
                   {explorerNavCollapsed ? (
-                    <span className="material-symbols-outlined text-[20px] shrink-0 hidden md:inline">
-                      label
+                    <span className="sr-only">{formatCategoryLabel(c)}</span>
+                  ) : (
+                    <span className="max-md:inline md:inline truncate">
+                      {formatCategoryLabel(c)}
                     </span>
-                  ) : null}
+                  )}
                 </button>
               </li>
             ))}
@@ -463,10 +475,13 @@ export function FeedExplorerPage() {
         </aside>
 
         <section
-          ref={feedScrollRef}
+          ref={(el) => {
+            feedScrollRef.current = el
+            setFeedScrollEl(el)
+          }}
           className="flex-1 overflow-y-auto no-scrollbar bg-background p-3 md:p-6 min-h-0 relative"
         >
-          <ScrollAssist scrollRef={feedScrollRef} />
+          <ScrollAssist scrollEl={feedScrollEl} />
           <div className="max-w-[2000px] mx-auto">
             <div className="mb-8 flex flex-wrap justify-between items-end gap-4">
               <div>
