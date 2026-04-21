@@ -22,8 +22,12 @@ npm run dev
 Your terminal will show a local URL, usually **http://localhost:5173**. Open that in your browser.
 
 - **Data Upload**: drop or select your export JSON (root object with a `posts` array, like `17 Apr 1.json` in this repo).
-- **Feed Explorer**: pick a stream, search, scroll; tweet embeds load as rows enter view.
+- **Feed Explorer**: pick a stream, search, scroll; tweet embeds load as rows enter view. You can **save** tweets (bookmark) or **trash** them; both are stored in **IndexedDB** in your browser (per loaded archive). **Empty trash** removes trashed ids so those tweets show in the feed again.
 - **Dashboard / Analytics**: summaries from the loaded file. Parsed data is stored in **IndexedDB** in your browser so a refresh keeps the last import (no backend server).
+
+### Vercel and GitHub
+
+If the Vercel project is connected to your GitHub repo, **pushing to the branch Vercel watches** (usually `main`) triggers a **new deployment automatically**. You can also click **Redeploy** in the Vercel dashboard. Production URL updates after the build finishes.
 
 To stop the dev server, press **Ctrl+C** in the terminal.
 

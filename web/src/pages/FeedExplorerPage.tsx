@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCuration } from '@/context/useCuration'
+import { useTweetLibrary } from '@/context/useTweetLibrary'
 import { LazyTweetEmbed } from '@/components/LazyTweetEmbed'
 import { formatCategoryLabel, primaryCategory } from '@/lib/format'
 import {
@@ -13,6 +14,7 @@ const ALL = '__all__'
 
 export function FeedExplorerPage() {
   const { snapshot } = useCuration()
+  const { view, setView, savedIds, trashedIds, emptyTrash } = useTweetLibrary()
   const [category, setCategory] = useState<string>(ALL)
   const [search, setSearch] = useState('')
 
@@ -22,7 +24,7 @@ export function FeedExplorerPage() {
     return snapshot.categories.includes(category) ? category : ALL
   }, [snapshot, category])
 
-  const filtered = useMemo(() => {
+  const streamFiltered = useMemo(() => {
     if (!snapshot) return []
     const base =
       effectiveCategory === ALL
@@ -32,6 +34,18 @@ export function FeedExplorerPage() {
           )
     return filterPostsBySearch(base, search)
   }, [snapshot, effectiveCategory, search])
+
+  const filtered = useMemo(() => {
+    if (view === 'saved') {
+      return streamFiltered.filter(
+        (p) => savedIds.has(p.id) && !trashedIds.has(p.id),
+      )
+    }
+    if (view === 'trash') {
+      return streamFiltered.filter((p) => trashedIds.has(p.id))
+    }
+    return streamFiltered.filter((p) => !trashedIds.has(p.id))
+  }, [streamFiltered, view, savedIds, trashedIds])
 
   if (!snapshot) {
     return (
@@ -53,9 +67,13 @@ export function FeedExplorerPage() {
   }
 
   const streamTitle =
-    effectiveCategory === ALL
-      ? 'Full archive'
-      : formatCategoryLabel(effectiveCategory)
+    view === 'saved'
+      ? 'Saved'
+      : view === 'trash'
+        ? 'Trash'
+        : effectiveCategory === ALL
+          ? 'Full archive'
+          : formatCategoryLabel(effectiveCategory)
 
   return (
     <main className="flex-1 flex flex-col h-[calc(100dvh-56px)] md:h-screen overflow-hidden bg-background">
@@ -79,6 +97,57 @@ export function FeedExplorerPage() {
 
       <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
         <aside className="w-full md:w-56 bg-surface-container-low p-4 md:p-6 flex-shrink-0 md:h-full overflow-x-auto md:overflow-y-auto no-scrollbar flex md:flex-col gap-2 md:gap-0 border-b md:border-b-0 border-outline-variant/10">
+          <h2 className="hidden md:block font-headline text-xs tracking-[0.05em] uppercase text-on-surface-variant mb-3 font-semibold">
+            Library
+          </h2>
+          <ul className="flex md:flex-col gap-1 min-w-max md:min-w-0 pb-1 md:pb-0 mb-2 md:mb-4">
+            <li className="md:w-full">
+              <button
+                type="button"
+                onClick={() => setView('default')}
+                className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap md:whitespace-normal ${
+                  view === 'default'
+                    ? 'bg-surface-container-lowest text-primary ambient-shadow'
+                    : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
+                }`}
+              >
+                Feed
+              </button>
+            </li>
+            <li className="md:w-full">
+              <button
+                type="button"
+                onClick={() => setView('saved')}
+                className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-between gap-2 whitespace-nowrap md:whitespace-normal ${
+                  view === 'saved'
+                    ? 'bg-surface-container-lowest text-primary ambient-shadow'
+                    : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
+                }`}
+              >
+                <span>Saved</span>
+                <span className="text-xs font-semibold tabular-nums opacity-80">
+                  {savedIds.size}
+                </span>
+              </button>
+            </li>
+            <li className="md:w-full">
+              <button
+                type="button"
+                onClick={() => setView('trash')}
+                className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-between gap-2 whitespace-nowrap md:whitespace-normal ${
+                  view === 'trash'
+                    ? 'bg-surface-container-lowest text-primary ambient-shadow'
+                    : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
+                }`}
+              >
+                <span>Trash</span>
+                <span className="text-xs font-semibold tabular-nums opacity-80">
+                  {trashedIds.size}
+                </span>
+              </button>
+            </li>
+          </ul>
+
           <h2 className="hidden md:block font-headline text-xs tracking-[0.05em] uppercase text-on-surface-variant mb-4 font-semibold">
             Curated streams
           </h2>
@@ -139,17 +208,54 @@ export function FeedExplorerPage() {
 
         <section className="flex-1 overflow-y-auto no-scrollbar bg-background p-4 md:p-10 min-h-0">
           <div className="max-w-2xl mx-auto pb-24">
-            <div className="mb-8 flex justify-between items-end gap-4">
+            <div className="mb-8 flex flex-wrap justify-between items-end gap-4">
               <div>
                 <h2 className="font-headline text-2xl md:text-3xl font-bold text-on-surface">
                   {streamTitle}
                 </h2>
                 <p className="text-sm text-on-surface-variant mt-2 font-body">
-                  Showing {filtered.length.toLocaleString()} of{' '}
-                  {snapshot.posts.length.toLocaleString()} posts
-                  {effectiveCategory !== ALL ? ' in this stream' : ''}.
+                  {view === 'default' && (
+                    <>
+                      Showing {filtered.length.toLocaleString()} visible posts
+                      {effectiveCategory === ALL ? '' : ' in this stream'}
+                      {search.trim() ? ' matching search' : ''} (
+                      {snapshot.posts.length.toLocaleString()} in archive;{' '}
+                      {trashedIds.size} in trash).
+                    </>
+                  )}
+                  {view === 'saved' && (
+                    <>
+                      {filtered.length.toLocaleString()} saved
+                      {search.trim() || effectiveCategory !== ALL
+                        ? ' match this stream and search'
+                        : ''}
+                      .
+                    </>
+                  )}
+                  {view === 'trash' && (
+                    <>
+                      {filtered.length.toLocaleString()} in trash for this
+                      stream. Restore to return to the feed.
+                    </>
+                  )}
                 </p>
               </div>
+              {view === 'trash' && trashedIds.size > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        'Remove all tweets from trash for this archive? They will reappear in the feed.',
+                      )
+                    )
+                      emptyTrash()
+                  }}
+                  className="text-sm font-medium text-error hover:underline underline-offset-4"
+                >
+                  Empty trash
+                </button>
+              ) : null}
             </div>
 
             <div className="space-y-8">
@@ -158,7 +264,11 @@ export function FeedExplorerPage() {
               ))}
               {filtered.length === 0 ? (
                 <p className="text-center text-on-surface-variant text-sm py-12">
-                  No posts match this stream and search.
+                  {view === 'saved'
+                    ? 'No saved tweets match this stream and search.'
+                    : view === 'trash'
+                      ? 'Trash is empty for this stream.'
+                      : 'No posts match this stream and search.'}
                 </p>
               ) : null}
             </div>
@@ -170,15 +280,63 @@ export function FeedExplorerPage() {
 }
 
 function TweetRow({ post }: { post: TweetPost }) {
+  const { view, isSaved, saveTweet, unsaveTweet, trashTweet, restoreTweet } =
+    useTweetLibrary()
   const pc = primaryCategory(post.scores)
   const topScores = Object.entries(post.scores)
     .filter(([, v]) => v > 0)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 4)
 
+  const saved = isSaved(post.id)
+
   return (
-    <article className="bg-surface-container-lowest rounded-xl p-6 md:p-8 ambient-shadow border border-outline-variant/10">
-      <div className="flex flex-wrap gap-2 mb-3">
+    <article className="bg-surface-container-lowest rounded-xl p-6 md:p-8 ambient-shadow border border-outline-variant/10 relative group">
+      <div className="absolute top-4 right-4 md:top-6 md:right-6 flex items-center gap-1">
+        {view === 'trash' ? (
+          <button
+            type="button"
+            onClick={() => restoreTweet(post.id)}
+            className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+            title="Restore to feed"
+          >
+            <span className="material-symbols-outlined text-[22px]">
+              undo
+            </span>
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => (saved ? unsaveTweet(post.id) : saveTweet(post.id))}
+              className={`p-2 rounded-lg transition-colors ${
+                saved
+                  ? 'text-primary bg-primary/10'
+                  : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary'
+              }`}
+              title={saved ? 'Remove from saved' : 'Save tweet'}
+            >
+              <span
+                className={`material-symbols-outlined text-[22px] ${saved ? 'filled' : ''}`}
+              >
+                bookmark
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => trashTweet(post.id)}
+              className="p-2 rounded-lg text-on-surface-variant hover:bg-error-container/15 hover:text-error transition-colors"
+              title="Move to trash"
+            >
+              <span className="material-symbols-outlined text-[22px]">
+                delete
+              </span>
+            </button>
+          </>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-3 pr-20">
         {post.tags.map((t) => (
           <span
             key={t}
@@ -190,6 +348,11 @@ function TweetRow({ post }: { post: TweetPost }) {
         {post.tags.length === 0 && pc !== 'unclassified' ? (
           <span className="inline-block px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
             Top: {formatCategoryLabel(pc)}
+          </span>
+        ) : null}
+        {saved && view !== 'saved' ? (
+          <span className="inline-block px-2.5 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-medium">
+            Saved
           </span>
         ) : null}
       </div>
