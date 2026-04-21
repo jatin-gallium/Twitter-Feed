@@ -8,6 +8,7 @@ import {
 import type { CurationSnapshot } from '@/types/export'
 import { parseTweetExportJson } from '@/lib/parseExport'
 import { clearSnapshot, loadSnapshot, saveSnapshot } from '@/lib/archiveStore'
+import { clearTweetLibraryDoc } from '@/lib/tweetLibraryStore'
 import { CurationContext } from '@/context/curationContext'
 
 export function CurationProvider({ children }: { children: ReactNode }) {
@@ -52,6 +53,7 @@ export function CurationProvider({ children }: { children: ReactNode }) {
     setSnapshot(null)
     setLastSourceName(null)
     await clearSnapshot()
+    await clearTweetLibraryDoc()
   }, [])
 
   const value = useMemo(
