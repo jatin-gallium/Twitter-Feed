@@ -19,9 +19,13 @@ Then open the URL Vite prints (usually `http://localhost:5173`).
 ### Deploy (example: Vercel)
 
 1. Create a Vercel project from this repo.
-2. Set **Root Directory** to `web`.
-3. Framework: **Vite** (or Other); build `npm run build`, output `dist`.
+2. Set **Root Directory** to `web` (important: not the repo root).
+3. Framework: **Vite** (or Other); build **`npm run build`**, output **`dist`**.
 4. Deploy. No API keys are required for the current build.
+
+`web/vercel.json` adds a **SPA fallback** so routes like `/explorer` or `/upload` work on refresh and deep links. Without it, Vercel only serves `index.html` at `/` and other paths can **404**.
+
+If you still see 404 on the **homepage** (`/`), double-check the dashboard: **Root Directory** = `web`, **Output Directory** = `dist`, and that the latest deployment succeeded (build logs show `vite build` completing).
 
 ## Sample data
 
