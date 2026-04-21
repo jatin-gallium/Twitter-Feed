@@ -15,11 +15,14 @@ import {
   readEmbedTheme,
   readExplorerNavCollapsed,
   readFeedDensity,
+  readFeedTopChrome,
   writeEmbedTheme,
   writeExplorerNavCollapsed,
   writeFeedDensity,
+  writeFeedTopChrome,
   type EmbedTheme,
   type FeedDensity,
+  type FeedTopChrome,
 } from '@/lib/layoutPrefs'
 
 const ALL = '__all__'
@@ -49,13 +52,20 @@ export function FeedExplorerPage() {
     () => readExplorerNavCollapsed(),
   )
   const feedScrollRef = useRef<HTMLElement | null>(null)
-  const [feedScrollEl, setFeedScrollEl] = useState<HTMLElement | null>(null)
   const [embedTheme, setEmbedTheme] = useState<EmbedTheme>(() => readEmbedTheme())
   const [feedDensity, setFeedDensity] = useState<FeedDensity>(() =>
     readFeedDensity(),
   )
   const [expandedText, setExpandedText] = useState<Set<string>>(() => new Set())
   const [draftNotes, setDraftNotes] = useState<Record<string, string>>({})
+  const [feedTopChrome, setFeedTopChrome] = useState<FeedTopChrome>(() =>
+    readFeedTopChrome(),
+  )
+
+  const setTopChrome = useCallback((mode: FeedTopChrome) => {
+    setFeedTopChrome(mode)
+    writeFeedTopChrome(mode)
+  }, [])
 
   const toggleExplorerNav = useCallback(() => {
     setExplorerNavCollapsed((v) => {
@@ -88,6 +98,10 @@ export function FeedExplorerPage() {
       else next.add(id)
       return next
     })
+  }, [])
+
+  const scrollFeedToTop = useCallback(() => {
+    feedScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
   const compact = feedDensity === 'compact'
@@ -158,91 +172,6 @@ export function FeedExplorerPage() {
 
   return (
     <main className="flex-1 flex flex-col h-[calc(100dvh-56px)] md:h-screen overflow-hidden bg-background">
-      <header className="glass-header sticky top-0 md:top-0 z-30 shadow-[0_12px_40px_rgba(5,52,92,0.06)] flex flex-col md:flex-row md:items-center gap-3 px-4 md:px-8 py-3 md:py-4 border-b border-outline-variant/10">
-        <div className="relative w-full md:max-w-2xl ghost-border bg-surface-container-lowest rounded-full transition-all">
-          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-xl">
-            search
-          </span>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-transparent border-none py-3 pl-12 pr-4 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-0 focus:outline-none rounded-full font-body"
-            placeholder="Search text, authors, tags, or reasons…"
-            type="search"
-          />
-        </div>
-        <div className="hidden md:flex items-center gap-2 ml-auto shrink-0">
-          <button
-            type="button"
-            onClick={toggleExplorerNav}
-            className="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
-            title={
-              explorerNavCollapsed
-                ? 'Expand feed sidebar'
-                : 'Minimize feed sidebar'
-            }
-            aria-expanded={!explorerNavCollapsed}
-            aria-label={
-              explorerNavCollapsed
-                ? 'Expand feed sidebar'
-                : 'Minimize feed sidebar'
-            }
-          >
-            <span className="material-symbols-outlined text-2xl">
-              {explorerNavCollapsed
-                ? 'dock_to_right'
-                : 'vertical_split'}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={toggleDensity}
-            className="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
-            title={
-              compact
-                ? 'Density: compact — click for comfy'
-                : 'Density: comfy — click for compact'
-            }
-            aria-label="Toggle feed density"
-          >
-            <span className="material-symbols-outlined text-2xl">
-              {compact ? 'view_compact' : 'view_comfy'}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={toggleEmbedTheme}
-            className="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
-            title={
-              embedTheme === 'dark'
-                ? 'Tweet embeds: dark — click for light'
-                : 'Tweet embeds: light — click for dark'
-            }
-            aria-label="Toggle tweet embed theme"
-          >
-            <span className="material-symbols-outlined text-2xl">
-              {embedTheme === 'dark' ? 'dark_mode' : 'light_mode'}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              feedScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
-            }
-            className="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
-            title="Back to top"
-            aria-label="Back to top"
-          >
-            <span className="material-symbols-outlined text-2xl">
-              vertical_align_top
-            </span>
-          </button>
-          <span className="material-symbols-outlined text-on-surface-variant p-2">
-            notifications
-          </span>
-        </div>
-      </header>
-
       <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
         <aside
           className={`w-full bg-surface-container-low flex-shrink-0 md:h-full overflow-x-auto md:overflow-y-auto no-scrollbar flex md:flex-col gap-2 md:gap-0 border-b md:border-b-0 border-outline-variant/10 transition-[width,padding] duration-200 ease-out ${
@@ -547,13 +476,148 @@ export function FeedExplorerPage() {
         </aside>
 
         <section
-          ref={(el) => {
-            feedScrollRef.current = el
-            setFeedScrollEl(el)
-          }}
+          ref={feedScrollRef}
           className="flex-1 overflow-y-auto no-scrollbar bg-background p-3 md:p-6 min-h-0 relative"
         >
-          <ScrollAssist scrollEl={feedScrollEl} />
+          <div className="sticky top-0 z-20 -mx-3 md:-mx-6 px-3 md:px-6 mb-3 md:mb-4">
+            <div className="pointer-events-auto glass-header rounded-xl border border-outline-variant/10 shadow-[0_8px_32px_rgba(5,52,92,0.08)] px-3 py-2.5 md:px-4 md:py-3">
+              {feedTopChrome === 'full' ? (
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-3">
+                  <div className="relative w-full md:flex-1 md:min-w-0 ghost-border bg-surface-container-lowest rounded-full transition-all">
+                    <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-xl pointer-events-none">
+                      search
+                    </span>
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="w-full bg-transparent border-none py-2.5 pl-11 pr-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-0 focus:outline-none rounded-full font-body"
+                      placeholder="Search text, authors, tags, or reasons…"
+                      type="search"
+                      autoComplete="off"
+                    />
+                    {search.trim() ? (
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-on-surface-variant hover:bg-surface-container-low transition-colors"
+                        aria-label="Clear search"
+                        title="Clear search"
+                        onClick={() => setSearch('')}
+                      >
+                        <span className="material-symbols-outlined text-lg">
+                          close
+                        </span>
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 md:justify-end md:shrink-0">
+                    <div className="flex flex-wrap items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={toggleExplorerNav}
+                        className="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+                        title={
+                          explorerNavCollapsed
+                            ? 'Expand feed sidebar'
+                            : 'Minimize feed sidebar'
+                        }
+                        aria-expanded={!explorerNavCollapsed}
+                        aria-label={
+                          explorerNavCollapsed
+                            ? 'Expand feed sidebar'
+                            : 'Minimize feed sidebar'
+                        }
+                      >
+                        <span className="material-symbols-outlined text-2xl">
+                          {explorerNavCollapsed
+                            ? 'dock_to_right'
+                            : 'vertical_split'}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={toggleDensity}
+                        className="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+                        title={
+                          compact
+                            ? 'Density: compact — click for comfy'
+                            : 'Density: comfy — click for compact'
+                        }
+                        aria-label="Toggle feed density"
+                      >
+                        <span className="material-symbols-outlined text-2xl">
+                          {compact ? 'view_compact' : 'view_comfy'}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={toggleEmbedTheme}
+                        className="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+                        title={
+                          embedTheme === 'dark'
+                            ? 'Tweet embeds: dark — click for light'
+                            : 'Tweet embeds: light — click for dark'
+                        }
+                        aria-label="Toggle tweet embed theme"
+                      >
+                        <span className="material-symbols-outlined text-2xl">
+                          {embedTheme === 'dark' ? 'dark_mode' : 'light_mode'}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={scrollFeedToTop}
+                        className="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+                        title="Back to top"
+                        aria-label="Back to top"
+                      >
+                        <span className="material-symbols-outlined text-2xl">
+                          vertical_align_top
+                        </span>
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <ScrollAssist scrollContainerRef={feedScrollRef} />
+                      <button
+                        type="button"
+                        onClick={() => setTopChrome('hidden')}
+                        className="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+                        title="Hide toolbar (more room for tweets)"
+                        aria-label="Hide feed toolbar"
+                      >
+                        <span className="material-symbols-outlined text-2xl">
+                          visibility_off
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTopChrome('full')}
+                    className="text-sm font-medium text-primary hover:underline underline-offset-4 px-1"
+                  >
+                    Show toolbar
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <ScrollAssist scrollContainerRef={feedScrollRef} />
+                    <button
+                      type="button"
+                      onClick={scrollFeedToTop}
+                      className="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+                      title="Back to top"
+                      aria-label="Back to top"
+                    >
+                      <span className="material-symbols-outlined text-2xl">
+                        vertical_align_top
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
           <div className="max-w-[2000px] mx-auto">
             <div className="mb-8 flex flex-wrap justify-between items-end gap-4">
               <div>
