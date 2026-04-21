@@ -169,6 +169,108 @@ export function FeedExplorerPage() {
           </div>
           <h2
             className={`hidden md:block font-headline text-xs tracking-[0.05em] uppercase text-on-surface-variant font-semibold ${
+              explorerNavCollapsed ? 'sr-only' : 'mb-3'
+            }`}
+          >
+            Library
+          </h2>
+          <ul className="flex md:flex-col gap-1 min-w-max md:min-w-0 pb-1 md:pb-0 mb-2 md:mb-4">
+            <li className="md:w-full">
+              <button
+                type="button"
+                onClick={() => setView('default')}
+                title="Feed"
+                className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap md:whitespace-normal flex md:items-center gap-2 ${
+                  explorerNavCollapsed ? 'md:justify-center md:px-2' : ''
+                } ${
+                  view === 'default'
+                    ? 'bg-surface-container-lowest text-primary ambient-shadow'
+                    : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[20px] shrink-0 md:hidden">
+                  dynamic_feed
+                </span>
+                <span className={explorerNavCollapsed ? 'md:sr-only' : ''}>
+                  Feed
+                </span>
+                {explorerNavCollapsed ? (
+                  <span className="material-symbols-outlined text-[20px] shrink-0 hidden md:inline">
+                    dynamic_feed
+                  </span>
+                ) : null}
+              </button>
+            </li>
+            <li className="md:w-full">
+              <button
+                type="button"
+                onClick={() => setView('saved')}
+                title={`Saved (${savedIds.size})`}
+                className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-between gap-2 whitespace-nowrap md:whitespace-normal ${
+                  explorerNavCollapsed ? 'md:justify-center md:px-2' : ''
+                } ${
+                  view === 'saved'
+                    ? 'bg-surface-container-lowest text-primary ambient-shadow'
+                    : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[20px] shrink-0 md:hidden">
+                  bookmark
+                </span>
+                <span className={explorerNavCollapsed ? 'md:sr-only' : ''}>
+                  Saved
+                </span>
+                <span
+                  className={`text-xs font-semibold tabular-nums opacity-80 ${
+                    explorerNavCollapsed ? 'md:sr-only' : ''
+                  }`}
+                >
+                  {savedIds.size}
+                </span>
+                {explorerNavCollapsed ? (
+                  <span className="material-symbols-outlined text-[20px] shrink-0 hidden md:inline filled text-primary">
+                    bookmark
+                  </span>
+                ) : null}
+              </button>
+            </li>
+            <li className="md:w-full">
+              <button
+                type="button"
+                onClick={() => setView('trash')}
+                title={`Trash (${trashedIds.size})`}
+                className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-between gap-2 whitespace-nowrap md:whitespace-normal ${
+                  explorerNavCollapsed ? 'md:justify-center md:px-2' : ''
+                } ${
+                  view === 'trash'
+                    ? 'bg-surface-container-lowest text-primary ambient-shadow'
+                    : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[20px] shrink-0 md:hidden">
+                  delete
+                </span>
+                <span className={explorerNavCollapsed ? 'md:sr-only' : ''}>
+                  Trash
+                </span>
+                <span
+                  className={`text-xs font-semibold tabular-nums opacity-80 ${
+                    explorerNavCollapsed ? 'md:sr-only' : ''
+                  }`}
+                >
+                  {trashedIds.size}
+                </span>
+                {explorerNavCollapsed ? (
+                  <span className="material-symbols-outlined text-[20px] shrink-0 hidden md:inline">
+                    delete
+                  </span>
+                ) : null}
+              </button>
+            </li>
+          </ul>
+
+          <h2
+            className={`hidden md:block font-headline text-xs tracking-[0.05em] uppercase text-on-surface-variant font-semibold ${
               explorerNavCollapsed ? 'sr-only' : 'mb-4'
             }`}
           >
