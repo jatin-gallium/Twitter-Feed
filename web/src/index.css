@@ -1,0 +1,156 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-headline: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-label: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  --color-error-dim: #6b0221;
+  --color-secondary: #5c5e72;
+  --color-inverse-surface: #000f21;
+  --color-secondary-dim: #505266;
+  --color-inverse-primary: #7486ff;
+  --color-surface-container-highest: #d2e4ff;
+  --color-on-tertiary-fixed: #4c3256;
+  --color-surface-container-high: #dce9ff;
+  --color-on-secondary-fixed-variant: #585a6f;
+  --color-on-secondary: #faf8ff;
+  --color-inverse-on-surface: #8e9eb7;
+  --color-on-tertiary-container: #5f446a;
+  --color-surface: #f8f9ff;
+  --color-surface-bright: #f8f9ff;
+  --color-primary-container: #435bf4;
+  --color-outline: #5a7da9;
+  --color-error: #a8364b;
+  --color-surface-variant: #d2e4ff;
+  --color-on-primary-fixed: #ffffff;
+  --color-on-error-container: #6e0523;
+  --color-primary-dim: #213dd9;
+  --color-on-primary-fixed-variant: #d7daff;
+  --color-surface-container: #e5eeff;
+  --color-on-surface: #05345c;
+  --color-secondary-fixed: #e0e1f9;
+  --color-tertiary-fixed: #f5d1ff;
+  --color-on-tertiary-fixed-variant: #6a4e74;
+  --color-primary-fixed: #435bf4;
+  --color-tertiary: #71557c;
+  --color-primary: #324be5;
+  --color-on-background: #05345c;
+  --color-on-primary-container: #ffffff;
+  --color-surface-container-lowest: #ffffff;
+  --color-secondary-fixed-dim: #d2d3eb;
+  --color-surface-tint: #324be5;
+  --color-error-container: #f97386;
+  --color-tertiary-fixed-dim: #e6c3f0;
+  --color-on-secondary-container: #4e5065;
+  --color-secondary-container: #e0e1f9;
+  --color-on-error: #fff7f7;
+  --color-background: #f8f9ff;
+  --color-tertiary-container: #f5d1ff;
+  --color-on-primary: #faf8ff;
+  --color-on-surface-variant: #3d618c;
+  --color-primary-fixed-dim: #344de7;
+  --color-on-secondary-fixed: #3c3e51;
+  --color-on-tertiary: #fff7fc;
+  --color-surface-container-low: #eff4ff;
+  --color-tertiary-dim: #64496f;
+  --color-outline-variant: #91b4e4;
+  --color-surface-dim: #c4dcff;
+
+  --radius-DEFAULT: 0.125rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.5rem;
+  --radius-full: 0.75rem;
+}
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+  body {
+    @apply m-0 min-h-screen bg-background text-on-surface font-body;
+  }
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+@utility glass-panel {
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+@utility glass-header {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+@utility gradient-btn {
+  background: linear-gradient(135deg, #324be5 0%, #435bf4 100%);
+}
+
+@utility gradient-text {
+  background: linear-gradient(135deg, #324be5 0%, #435bf4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@utility ambient-shadow {
+  box-shadow: 0 12px 40px rgba(5, 52, 92, 0.06);
+}
+
+@utility ghost-border {
+  border: 1px solid rgba(145, 180, 228, 0.15);
+}
+
+@layer utilities {
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+  @media (width >= 48rem) {
+    .md\:sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+.material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 300,
+    'GRAD' 0,
+    'opsz' 24;
+}
+.material-symbols-outlined.filled {
+  font-variation-settings:
+    'FILL' 1,
+    'wght' 300,
+    'GRAD' 0,
+    'opsz' 24;
+}
