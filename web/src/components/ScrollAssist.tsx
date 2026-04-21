@@ -7,26 +7,12 @@ import {
 } from 'react'
 
 type Props = {
-  /** Preferred scroll container (feed body). If it has no overflow, falls back to the document root. */
+  /** Feed body only — never scroll `documentElement` or the toolbar will move with the page. */
   scrollContainerRef: RefObject<HTMLElement | null>
   className?: string
 }
 
 const STEP = 48
-
-function pickScrollRoot(
-  containerRef: RefObject<HTMLElement | null>,
-): HTMLElement | null {
-  const el = containerRef.current
-  if (el) {
-    const innerMax = el.scrollHeight - el.clientHeight
-    if (innerMax > 1) return el
-  }
-  const doc = document.documentElement
-  const winMax = doc.scrollHeight - doc.clientHeight
-  if (winMax > 1) return doc
-  return el
-}
 
 /**
  * Hold-to-scroll: pointer capture keeps the gesture on the button; window-level
@@ -61,15 +47,24 @@ export function ScrollAssist({ scrollContainerRef, className = '' }: Props) {
     (dir: -1 | 1) => {
       clearScroll()
       const tick = () => {
-        const root = pickScrollRoot(scrollContainerRef)
-        if (!root) return
-        const max = root.scrollHeight - root.clientHeight
-        if (max <= 0) return
-        const next = root.scrollTop + dir * STEP
-        root.scrollTop = Math.max(0, Math.min(max, next))
+        const el = scrollContainerRef.current
+        if (!el) {
+          clearScroll()
+          return
+        }
+        const max = el.scrollHeight - el.clientHeight
+        if (max <= 0) {
+          clearScroll()
+          return
+        }
+        const next = el.scrollTop + dir * STEP
+        el.scrollTop = Math.max(0, Math.min(max, next))
       }
       tick()
-      intervalRef.current = setInterval(tick, 32)
+      const el = scrollContainerRef.current
+      if (el && el.scrollHeight - el.clientHeight > 0) {
+        intervalRef.current = setInterval(tick, 32)
+      }
     },
     [clearScroll, scrollContainerRef],
   )
