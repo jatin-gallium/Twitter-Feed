@@ -83,6 +83,10 @@ Examples: **Vercel**, **Netlify**, **Cloudflare Pages**.
 
 Not directly. This environment can build the app and give you the files or Docker image recipe, but **your** server, DNS, and HTTPS certificates live in **your** accounts. Use one of the options above on infrastructure you control.
 
+`web/vercel.json` adds a **SPA fallback** so routes like `/explorer` or `/upload` work on refresh and deep links. Without it, Vercel only serves `index.html` at `/` and other paths can **404**.
+
+If you still see 404 on the **homepage** (`/`), double-check the dashboard: **Root Directory** = `web`, **Output Directory** = `dist`, and that the latest deployment succeeded (build logs show `vite build` completing).
+
 ## Sample data
 
 `17 Apr 1.json` in the repo root is an example export for local testing (large file).
