@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef } from 'react'
 
 type Props = {
-  /** Scrollable feed panel; keep in sync when ref attaches. */
   scrollEl: HTMLElement | null
 }
 
-/** Pixels per tick at ~60fps feel */
-const STEP = 9
+const STEP = 14
 
 export function ScrollAssist({ scrollEl }: Props) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const scrollElRef = useRef<HTMLElement | null>(null)
+  const listeningRef = useRef(false)
+  const endListenerRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     scrollElRef.current = scrollEl
@@ -23,51 +23,75 @@ export function ScrollAssist({ scrollEl }: Props) {
     }
   }, [])
 
-  const beginScroll = useCallback(
+  const removeEndListeners = useCallback(() => {
+    const fn = endListenerRef.current
+    if (!fn) return
+    window.removeEventListener('mouseup', fn, true)
+    window.removeEventListener('mouseleave', fn, true)
+    window.removeEventListener('touchend', fn, true)
+    window.removeEventListener('touchcancel', fn, true)
+    window.removeEventListener('blur', fn)
+    endListenerRef.current = null
+    listeningRef.current = false
+  }, [])
+
+  const beginScroll = useCallback((dir: -1 | 1) => {
+    clearScroll()
+    const tick = () => {
+      const el = scrollElRef.current
+      if (!el) return
+      const max = el.scrollHeight - el.clientHeight
+      if (max <= 0) return
+      const next = el.scrollTop + dir * STEP
+      el.scrollTop = Math.max(0, Math.min(max, next))
+    }
+    tick()
+    intervalRef.current = setInterval(tick, 16)
+  }, [clearScroll])
+
+  const startHold = useCallback(
     (dir: -1 | 1) => {
+      removeEndListeners()
       clearScroll()
-      intervalRef.current = setInterval(() => {
-        const el = scrollElRef.current
-        if (!el) return
-        el.scrollTop += dir * STEP
-      }, 16)
+
+      const end = () => {
+        removeEndListeners()
+        clearScroll()
+      }
+      endListenerRef.current = end
+      listeningRef.current = true
+      window.addEventListener('mouseup', end, true)
+      window.addEventListener('mouseleave', end, true)
+      window.addEventListener('touchend', end, true)
+      window.addEventListener('touchcancel', end, true)
+      window.addEventListener('blur', end)
+
+      beginScroll(dir)
     },
-    [clearScroll],
+    [beginScroll, clearScroll, removeEndListeners],
   )
 
   useEffect(() => {
-    return () => clearScroll()
-  }, [clearScroll])
-
-  useEffect(() => {
-    const onWinUp = () => clearScroll()
-    window.addEventListener('mouseup', onWinUp)
-    window.addEventListener('touchend', onWinUp)
-    window.addEventListener('blur', onWinUp)
     return () => {
-      window.removeEventListener('mouseup', onWinUp)
-      window.removeEventListener('touchend', onWinUp)
-      window.removeEventListener('blur', onWinUp)
+      removeEndListeners()
+      clearScroll()
     }
-  }, [clearScroll])
+  }, [removeEndListeners, clearScroll])
 
   return (
-    <div className="fixed right-3 bottom-20 z-[100] flex flex-col gap-2 md:right-5 md:bottom-8 pointer-events-auto">
+    <div className="fixed right-3 bottom-20 z-[200] flex flex-col gap-2 md:right-5 md:bottom-8 pointer-events-auto">
       <button
         type="button"
         className="h-12 w-12 rounded-full bg-primary text-on-primary shadow-lg shadow-primary/25 flex items-center justify-center select-none touch-none active:scale-95 transition-transform"
         title="Hold to scroll up"
         aria-label="Hold to scroll feed up"
-        onPointerDown={(e) => {
+        onMouseDown={(e) => {
           e.preventDefault()
-          if (e.pointerType === 'mouse' || e.pointerType === 'pen') {
-            e.currentTarget.setPointerCapture(e.pointerId)
-          }
-          beginScroll(-1)
+          startHold(-1)
         }}
-        onPointerUp={clearScroll}
-        onPointerCancel={clearScroll}
-        onLostPointerCapture={clearScroll}
+        onTouchStart={() => {
+          startHold(-1)
+        }}
       >
         <span className="material-symbols-outlined text-2xl pointer-events-none">
           expand_less
@@ -78,16 +102,13 @@ export function ScrollAssist({ scrollEl }: Props) {
         className="h-12 w-12 rounded-full bg-primary text-on-primary shadow-lg shadow-primary/25 flex items-center justify-center select-none touch-none active:scale-95 transition-transform"
         title="Hold to scroll down"
         aria-label="Hold to scroll feed down"
-        onPointerDown={(e) => {
+        onMouseDown={(e) => {
           e.preventDefault()
-          if (e.pointerType === 'mouse' || e.pointerType === 'pen') {
-            e.currentTarget.setPointerCapture(e.pointerId)
-          }
-          beginScroll(1)
+          startHold(1)
         }}
-        onPointerUp={clearScroll}
-        onPointerCancel={clearScroll}
-        onLostPointerCapture={clearScroll}
+        onTouchStart={() => {
+          startHold(1)
+        }}
       >
         <span className="material-symbols-outlined text-2xl pointer-events-none">
           expand_more
