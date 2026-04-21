@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCuration } from '@/context/useCuration'
 import { LazyTweetEmbed } from '@/components/LazyTweetEmbed'
@@ -8,6 +8,10 @@ import {
   postMatchesCategory,
 } from '@/lib/parseExport'
 import type { TweetPost } from '@/types/export'
+import {
+  readExplorerNavCollapsed,
+  writeExplorerNavCollapsed,
+} from '@/lib/layoutPrefs'
 
 const ALL = '__all__'
 
@@ -15,6 +19,17 @@ export function FeedExplorerPage() {
   const { snapshot } = useCuration()
   const [category, setCategory] = useState<string>(ALL)
   const [search, setSearch] = useState('')
+  const [explorerNavCollapsed, setExplorerNavCollapsed] = useState(
+    () => readExplorerNavCollapsed(),
+  )
+
+  const toggleExplorerNav = useCallback(() => {
+    setExplorerNavCollapsed((v) => {
+      const next = !v
+      writeExplorerNavCollapsed(next)
+      return next
+    })
+  }, [])
 
   const effectiveCategory = useMemo(() => {
     if (!snapshot) return ALL
@@ -72,14 +87,73 @@ export function FeedExplorerPage() {
             type="search"
           />
         </div>
-        <div className="hidden md:flex items-center gap-4 ml-auto text-on-surface-variant">
-          <span className="material-symbols-outlined">notifications</span>
+        <div className="hidden md:flex items-center gap-2 ml-auto shrink-0">
+          <button
+            type="button"
+            onClick={toggleExplorerNav}
+            className="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+            title={
+              explorerNavCollapsed
+                ? 'Expand feed sidebar'
+                : 'Minimize feed sidebar'
+            }
+            aria-expanded={!explorerNavCollapsed}
+            aria-label={
+              explorerNavCollapsed
+                ? 'Expand feed sidebar'
+                : 'Minimize feed sidebar'
+            }
+          >
+            <span className="material-symbols-outlined text-2xl">
+              {explorerNavCollapsed
+                ? 'dock_to_right'
+                : 'vertical_split'}
+            </span>
+          </button>
+          <span className="material-symbols-outlined text-on-surface-variant p-2">
+            notifications
+          </span>
         </div>
       </header>
 
       <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
-        <aside className="w-full md:w-56 bg-surface-container-low p-4 md:p-6 flex-shrink-0 md:h-full overflow-x-auto md:overflow-y-auto no-scrollbar flex md:flex-col gap-2 md:gap-0 border-b md:border-b-0 border-outline-variant/10">
-          <h2 className="hidden md:block font-headline text-xs tracking-[0.05em] uppercase text-on-surface-variant mb-4 font-semibold">
+        <aside
+          className={`w-full bg-surface-container-low flex-shrink-0 md:h-full overflow-x-auto md:overflow-y-auto no-scrollbar flex md:flex-col gap-2 md:gap-0 border-b md:border-b-0 border-outline-variant/10 transition-[width,padding] duration-200 ease-out ${
+            explorerNavCollapsed
+              ? 'md:w-14 md:px-2 md:py-4 md:items-center'
+              : 'md:w-56 md:p-6'
+          }`}
+        >
+          <div
+            className={`hidden md:flex w-full ${explorerNavCollapsed ? 'justify-center mb-2' : 'justify-end mb-1'}`}
+          >
+            <button
+              type="button"
+              onClick={toggleExplorerNav}
+              className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-lowest hover:text-primary transition-colors"
+              title={
+                explorerNavCollapsed
+                  ? 'Expand sidebar'
+                  : 'Minimize sidebar'
+              }
+              aria-label={
+                explorerNavCollapsed
+                  ? 'Expand sidebar'
+                  : 'Minimize sidebar'
+              }
+            >
+              <span className="material-symbols-outlined text-xl">
+                {explorerNavCollapsed
+                  ? 'keyboard_double_arrow_right'
+                  : 'keyboard_double_arrow_left'}
+              </span>
+            </button>
+          </div>
+          <h2
+            className={`hidden md:block font-headline text-xs tracking-[0.05em] uppercase text-on-surface-variant font-semibold ${
+              explorerNavCollapsed ? 'sr-only' : 'mb-4'
+            }`}
+          >
             Curated streams
           </h2>
           <ul className="flex md:flex-col gap-1 min-w-max md:min-w-0 pb-1 md:pb-0">
@@ -87,13 +161,26 @@ export function FeedExplorerPage() {
               <button
                 type="button"
                 onClick={() => setCategory(ALL)}
-                className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap md:whitespace-normal ${
+                title="All posts"
+                className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap md:whitespace-normal flex md:items-center gap-2 ${
+                  explorerNavCollapsed ? 'md:justify-center md:px-2' : ''
+                } ${
                   effectiveCategory === ALL
                     ? 'bg-surface-container-lowest text-primary ambient-shadow'
                     : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
                 }`}
               >
-                All posts
+                <span className="material-symbols-outlined text-[20px] shrink-0 md:hidden">
+                  stacks
+                </span>
+                <span className={explorerNavCollapsed ? 'md:sr-only' : ''}>
+                  All posts
+                </span>
+                {explorerNavCollapsed ? (
+                  <span className="material-symbols-outlined text-[20px] shrink-0 hidden md:inline">
+                    stacks
+                  </span>
+                ) : null}
               </button>
             </li>
             {snapshot.categories.map((c) => (
@@ -101,22 +188,45 @@ export function FeedExplorerPage() {
                 <button
                   type="button"
                   onClick={() => setCategory(c)}
-                  className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap md:whitespace-normal ${
+                  title={formatCategoryLabel(c)}
+                  className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap md:whitespace-normal flex md:items-center gap-2 ${
+                    explorerNavCollapsed ? 'md:justify-center md:px-2' : ''
+                  } ${
                     effectiveCategory === c
                       ? 'bg-surface-container-lowest text-primary ambient-shadow'
                       : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
                   }`}
                 >
-                  {formatCategoryLabel(c)}
+                  <span className="material-symbols-outlined text-[20px] shrink-0 md:hidden">
+                    label
+                  </span>
+                  <span
+                    className={`truncate ${explorerNavCollapsed ? 'md:sr-only' : ''}`}
+                  >
+                    {formatCategoryLabel(c)}
+                  </span>
+                  {explorerNavCollapsed ? (
+                    <span className="material-symbols-outlined text-[20px] shrink-0 hidden md:inline">
+                      label
+                    </span>
+                  ) : null}
                 </button>
               </li>
             ))}
           </ul>
 
-          <h2 className="hidden md:block font-headline text-xs tracking-[0.05em] uppercase text-on-surface-variant mt-8 mb-3 font-semibold">
+          <h2
+            className={`hidden md:block font-headline text-xs tracking-[0.05em] uppercase text-on-surface-variant font-semibold ${
+              explorerNavCollapsed ? 'sr-only' : 'mt-8 mb-3'
+            }`}
+          >
             Active filters
           </h2>
-          <div className="hidden md:flex flex-wrap gap-2">
+          <div
+            className={`hidden md:flex flex-wrap gap-2 ${
+              explorerNavCollapsed ? 'flex-col items-center' : ''
+            }`}
+          >
             {search.trim() ? (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-surface-container-high text-on-surface-variant">
                 Query: {search.trim()}

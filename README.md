@@ -22,7 +22,7 @@ npm run dev
 Your terminal will show a local URL, usually **http://localhost:5173**. Open that in your browser.
 
 - **Data Upload**: drop or select your export JSON (root object with a `posts` array, like `17 Apr 1.json` in this repo).
-- **Feed Explorer**: pick a stream, search, scroll; tweet embeds load as rows enter view.
+- **Feed Explorer**: pick a stream, search, scroll; tweet embeds load as rows enter view. On desktop, use **minimize** on the main left nav (double chevron) or on the feed sidebar (chevron in the sidebar or split icon in the header) to widen the reading area; the choice is remembered for the browser tab (**sessionStorage**).
 - **Dashboard / Analytics**: summaries from the loaded file. Parsed data is stored in **IndexedDB** in your browser so a refresh keeps the last import (no backend server).
 
 To stop the dev server, press **Ctrl+C** in the terminal.
