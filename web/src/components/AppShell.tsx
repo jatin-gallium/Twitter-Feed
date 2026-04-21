@@ -22,7 +22,7 @@ export function AppShell() {
       <MobileHeader />
       <SideNav collapsed={mainNavCollapsed} onToggleCollapsed={toggleMainNav} />
       <div
-        className={`flex-1 flex flex-col min-h-screen pt-[56px] md:pt-0 transition-[margin] duration-200 ease-out ${
+        className={`flex-1 flex flex-col min-h-0 h-[calc(100dvh-56px)] md:h-screen overflow-hidden pt-[56px] md:pt-0 transition-[margin] duration-200 ease-out ${
           mainNavCollapsed ? 'md:ml-[4.5rem]' : 'md:ml-64'
         }`}
       >

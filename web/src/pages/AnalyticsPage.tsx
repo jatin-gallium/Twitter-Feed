@@ -39,7 +39,7 @@ export function AnalyticsPage() {
 
   if (!snapshot || !stats) {
     return (
-      <main className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[60vh]">
+      <main className="flex-1 flex flex-col min-h-0 overflow-y-auto items-center justify-center p-8 text-center min-h-[60vh]">
         <h2 className="font-headline text-2xl font-bold text-on-surface mb-3">
           Analytics need data
         </h2>
@@ -60,7 +60,7 @@ export function AnalyticsPage() {
   const maxPrimary = Math.max(...stats.topPrimary.map(([, n]) => n), 1)
 
   return (
-    <main className="flex-1 md:ml-0 p-6 md:p-12 max-w-[1600px] mx-auto w-full pb-24">
+    <main className="flex-1 min-h-0 overflow-y-auto md:ml-0 p-6 md:p-12 max-w-[1600px] mx-auto w-full pb-24">
       <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h1 className="font-headline text-3xl md:text-5xl font-extrabold text-on-surface tracking-tight mb-2">
