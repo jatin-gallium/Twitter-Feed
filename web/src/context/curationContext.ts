@@ -7,6 +7,7 @@ export type CurationContextValue = {
   ingestJsonText: (text: string, sourceName?: string) => void
   ingestFile: (file: File) => Promise<void>
   clear: () => Promise<void>
+  replaceSnapshot: (snapshot: CurationSnapshot) => void
   lastSourceName: string | null
 }
 

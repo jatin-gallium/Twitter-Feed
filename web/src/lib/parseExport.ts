@@ -57,7 +57,7 @@ function num(v: unknown): number | undefined {
   return typeof v === 'number' && Number.isFinite(v) ? v : undefined
 }
 
-function collectCategories(posts: TweetPost[]): string[] {
+export function collectCategories(posts: TweetPost[]): string[] {
   const set = new Set<string>()
   for (const p of posts) {
     for (const k of Object.keys(p.scores)) set.add(k)
@@ -113,6 +113,23 @@ export function parseTweetExportJson(text: string): CurationSnapshot {
     posts,
     categories: collectCategories(posts),
     savedAt: new Date().toISOString(),
+  }
+}
+
+/** Remove posts by id and recompute categories and post count. */
+export function snapshotWithoutPosts(
+  snapshot: CurationSnapshot,
+  removeIds: Set<string>,
+): CurationSnapshot {
+  const posts = snapshot.posts.filter((p) => !removeIds.has(p.id))
+  return {
+    ...snapshot,
+    posts,
+    categories: collectCategories(posts),
+    exportMeta: {
+      ...snapshot.exportMeta,
+      postCount: posts.length,
+    },
   }
 }
 
