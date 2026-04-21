@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { CurationProvider } from '@/context/CurationProvider'
+import { ForeverLibraryProvider } from '@/context/ForeverLibraryProvider'
 import { TweetLibraryProvider } from '@/context/TweetLibraryProvider'
 import { AppShell } from '@/components/AppShell'
 import { DashboardPage } from '@/pages/DashboardPage'
@@ -11,6 +12,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <CurationProvider>
+        <ForeverLibraryProvider>
         <TweetLibraryProvider>
         <Routes>
           <Route element={<AppShell />}>
@@ -22,6 +24,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </TweetLibraryProvider>
+        </ForeverLibraryProvider>
       </CurationProvider>
     </BrowserRouter>
   )
