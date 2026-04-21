@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCuration } from '@/context/useCuration'
 import { useTweetLibrary } from '@/context/useTweetLibrary'
@@ -28,14 +28,6 @@ import {
 const ALL = '__all__'
 
 export function FeedExplorerPage() {
-  useEffect(() => {
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prevOverflow
-    }
-  }, [])
-
   const { snapshot } = useCuration()
   const {
     view,
@@ -148,7 +140,7 @@ export function FeedExplorerPage() {
 
   if (!snapshot && view !== 'forever') {
     return (
-      <main className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[60vh]">
+      <main className="flex-1 flex flex-col min-h-0 overflow-y-auto items-center justify-center p-8 text-center min-h-[60vh]">
         <h2 className="font-headline text-2xl font-bold text-on-surface mb-3">
           No archive loaded
         </h2>

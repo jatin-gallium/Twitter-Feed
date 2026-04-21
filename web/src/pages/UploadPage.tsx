@@ -63,7 +63,7 @@ export function UploadPage() {
   )
 
   return (
-    <main className="flex-1 flex flex-col min-h-screen bg-surface">
+    <main className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-surface">
       <div className="p-6 md:p-12 lg:p-24 flex flex-col items-center flex-1">
         <div className="w-full max-w-2xl text-center mb-10">
           <h2 className="text-3xl md:text-4xl font-headline font-bold text-on-surface mb-4">
