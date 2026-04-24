@@ -28,18 +28,27 @@ import {
 const ALL = '__all__'
 
 export function FeedExplorerPage() {
-  const { snapshot } = useCuration()
+  const {
+    snapshot,
+    archives,
+    activeArchiveId,
+    setActiveArchiveId,
+    removeArchive,
+  } = useCuration()
   const {
     view,
     setView,
     savedIds,
     trashedIds,
+    seenIds,
     saveNotes,
     emptyTrash,
     purgeTrashedFromArchive,
     setSaveNote,
     saveTweet,
     isSaved,
+    hideSeenInFeed,
+    setHideSeenInFeed,
   } = useTweetLibrary()
   const {
     foreverPosts,
@@ -135,8 +144,26 @@ export function FeedExplorerPage() {
     if (view === 'trash') {
       return streamFiltered.filter((p) => trashedIds.has(p.id))
     }
-    return streamFiltered.filter((p) => !trashedIds.has(p.id))
-  }, [streamFiltered, view, savedIds, trashedIds, foreverPosts, search])
+    if (view === 'seen') {
+      return streamFiltered.filter(
+        (p) => seenIds.has(p.id) && !trashedIds.has(p.id),
+      )
+    }
+    const notTrash = streamFiltered.filter((p) => !trashedIds.has(p.id))
+    if (hideSeenInFeed) {
+      return notTrash.filter((p) => !seenIds.has(p.id))
+    }
+    return notTrash
+  }, [
+    streamFiltered,
+    view,
+    savedIds,
+    trashedIds,
+    seenIds,
+    hideSeenInFeed,
+    foreverPosts,
+    search,
+  ])
 
   if (!snapshot && view !== 'forever') {
     return (
@@ -166,9 +193,11 @@ export function FeedExplorerPage() {
         ? 'Saved'
         : view === 'trash'
           ? 'Trash'
-          : effectiveCategory === ALL
-            ? 'Full archive'
-            : formatCategoryLabel(effectiveCategory)
+          : view === 'seen'
+            ? 'Seen'
+            : effectiveCategory === ALL
+              ? 'Full archive'
+              : formatCategoryLabel(effectiveCategory)
 
   return (
     <main className="flex-1 flex flex-col h-[calc(100dvh-56px)] md:h-screen overflow-hidden bg-background">
@@ -212,6 +241,64 @@ export function FeedExplorerPage() {
           >
             Library
           </h2>
+          {archives.length > 1 ? (
+            <div className="mb-2 w-full md:hidden px-1 shrink-0 min-w-[10rem]">
+              <select
+                className="w-full rounded-lg border border-outline-variant/30 bg-surface-container-lowest px-2 py-1.5 text-xs text-on-surface"
+                value={activeArchiveId ?? ''}
+                onChange={(e) => {
+                  const v = e.target.value
+                  if (v) void setActiveArchiveId(v)
+                }}
+              >
+                {archives.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+          {archives.length > 1 ? (
+            <div className="mb-3 md:mb-4 w-full hidden md:block">
+              <label className="block text-[10px] uppercase tracking-wider text-on-surface-variant font-semibold mb-1">
+                Dataset
+              </label>
+              <select
+                className="w-full rounded-lg border border-outline-variant/30 bg-surface-container-lowest px-2 py-2 text-sm text-on-surface"
+                value={activeArchiveId ?? ''}
+                onChange={(e) => {
+                  const v = e.target.value
+                  if (v) void setActiveArchiveId(v)
+                }}
+              >
+                {archives.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
+                  </option>
+                ))}
+              </select>
+              {!explorerNavCollapsed ? (
+                <button
+                  type="button"
+                  className="mt-2 text-xs text-error hover:underline"
+                  onClick={() => {
+                    if (!activeArchiveId || archives.length < 2) return
+                    const row = archives.find((a) => a.id === activeArchiveId)
+                    if (
+                      !window.confirm(
+                        `Remove "${row?.label ?? 'this dataset'}" from this browser? Marks for it will be deleted.`,
+                      )
+                    )
+                      return
+                    void removeArchive(activeArchiveId)
+                  }}
+                >
+                  Remove current dataset
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           <ul className="flex md:flex-col gap-1 min-w-max md:min-w-0 pb-1 md:pb-0 mb-2 md:mb-4">
             <li className="md:w-full">
               <button
@@ -283,6 +370,47 @@ export function FeedExplorerPage() {
                     </span>
                     <span className="max-md:inline md:inline text-xs font-semibold tabular-nums opacity-80">
                       {savedIds.size}
+                    </span>
+                  </>
+                )}
+              </button>
+            </li>
+            <li className="md:w-full">
+              <button
+                type="button"
+                disabled={!snapshot}
+                onClick={() => snapshot && setView('seen')}
+                title={
+                  snapshot
+                    ? `Seen (${seenIds.size})`
+                    : 'Load an archive first'
+                }
+                className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-between gap-2 whitespace-nowrap md:whitespace-normal ${
+                  explorerNavCollapsed ? 'md:justify-center md:px-2' : ''
+                } ${
+                  !snapshot
+                    ? 'opacity-40 cursor-not-allowed'
+                    : view === 'seen'
+                      ? 'bg-surface-container-lowest text-primary ambient-shadow'
+                      : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
+                }`}
+              >
+                <span
+                  className={`material-symbols-outlined text-[20px] shrink-0 ${
+                    explorerNavCollapsed ? 'inline' : 'max-md:inline md:hidden'
+                  }`}
+                >
+                  visibility
+                </span>
+                {explorerNavCollapsed ? (
+                  <span className="sr-only">Seen ({seenIds.size})</span>
+                ) : (
+                  <>
+                    <span className="max-md:inline md:inline flex-1 text-left md:flex-none">
+                      Seen
+                    </span>
+                    <span className="max-md:inline md:inline text-xs font-semibold tabular-nums opacity-80">
+                      {seenIds.size}
                     </span>
                   </>
                 )}
@@ -508,6 +636,38 @@ export function FeedExplorerPage() {
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-2 md:justify-end md:shrink-0">
                     <div className="flex flex-wrap items-center gap-1">
+                      {archives.length > 1 ? (
+                        <label className="flex items-center gap-1.5 text-xs text-on-surface-variant max-md:w-full max-md:mb-1">
+                          <span className="material-symbols-outlined text-lg shrink-0">
+                            folder_open
+                          </span>
+                          <select
+                            className="flex-1 min-w-0 rounded-lg border border-outline-variant/30 bg-surface-container-lowest px-2 py-1.5 text-sm text-on-surface max-w-[14rem]"
+                            value={activeArchiveId ?? ''}
+                            onChange={(e) => {
+                              const v = e.target.value
+                              if (v) void setActiveArchiveId(v)
+                            }}
+                          >
+                            {archives.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : null}
+                      <label className="flex items-center gap-2 cursor-pointer text-xs text-on-surface-variant whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          className="rounded border-outline-variant"
+                          checked={hideSeenInFeed}
+                          onChange={(e) =>
+                            setHideSeenInFeed(e.target.checked)
+                          }
+                        />
+                        Hide seen
+                      </label>
                       <button
                         type="button"
                         onClick={toggleExplorerNav}
@@ -590,13 +750,42 @@ export function FeedExplorerPage() {
                 </div>
               ) : (
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setTopChrome('full')}
-                    className="text-sm font-medium text-primary hover:underline underline-offset-4 px-1"
-                  >
-                    Show toolbar
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTopChrome('full')}
+                      className="text-sm font-medium text-primary hover:underline underline-offset-4 px-1"
+                    >
+                      Show toolbar
+                    </button>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-on-surface-variant">
+                      <input
+                        type="checkbox"
+                        className="rounded border-outline-variant"
+                        checked={hideSeenInFeed}
+                        onChange={(e) =>
+                          setHideSeenInFeed(e.target.checked)
+                        }
+                      />
+                      Hide seen
+                    </label>
+                    {archives.length > 1 ? (
+                      <select
+                        className="rounded-lg border border-outline-variant/30 bg-surface-container-lowest px-2 py-1 text-xs text-on-surface max-w-[10rem]"
+                        value={activeArchiveId ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          if (v) void setActiveArchiveId(v)
+                        }}
+                      >
+                        {archives.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : null}
+                  </div>
                   <div className="flex items-center gap-2">
                     <ScrollAssist scrollContainerRef={feedScrollRef} />
                     <button
@@ -628,11 +817,12 @@ export function FeedExplorerPage() {
                 <p className="text-sm text-on-surface-variant mt-2 font-body">
                   {view === 'default' && snapshot && (
                     <>
-                      Showing {filtered.length.toLocaleString()} visible posts
+                      Showing {filtered.length.toLocaleString()} posts
+                      {hideSeenInFeed ? ' (hiding seen)' : ''}
                       {effectiveCategory === ALL ? '' : ' in this stream'}
-                      {search.trim() ? ' matching search' : ''} (
+                      {search.trim() ? ' matching search' : ''}.{' '}
                       {snapshot.posts.length.toLocaleString()} in archive;{' '}
-                      {trashedIds.size} in trash).
+                      {seenIds.size} seen; {trashedIds.size} in trash.
                     </>
                   )}
                   {view === 'saved' && (
@@ -642,6 +832,12 @@ export function FeedExplorerPage() {
                         ? ' match this stream and search'
                         : ''}
                       .
+                    </>
+                  )}
+                  {view === 'seen' && (
+                    <>
+                      {filtered.length.toLocaleString()} marked seen in this
+                      dataset (not trashed).
                     </>
                   )}
                   {view === 'trash' && (
@@ -738,9 +934,13 @@ export function FeedExplorerPage() {
                     ? 'Nothing pinned yet. Use Keep on a tweet to save it here forever.'
                     : view === 'saved'
                       ? 'No saved tweets match this stream and search.'
-                      : view === 'trash'
-                        ? 'Trash is empty for this stream.'
-                        : 'No posts match this stream and search.'}
+                      : view === 'seen'
+                        ? 'No seen tweets match this stream and search.'
+                        : view === 'trash'
+                          ? 'Trash is empty for this stream.'
+                          : hideSeenInFeed
+                            ? 'Nothing unseen matches this stream and search. Turn off “Hide seen” in the toolbar to show seen posts again.'
+                            : 'No posts match this stream and search.'}
                 </p>
               ) : null}
             </div>
@@ -773,8 +973,16 @@ function TweetRow({
   onSaveNoteChange: (note: string) => void
   onSaveWithNote: (note: string) => void
 }) {
-  const { view, isSaved, unsaveTweet, trashTweet, restoreTweet } =
-    useTweetLibrary()
+  const {
+    view,
+    isSaved,
+    isSeen,
+    unsaveTweet,
+    trashTweet,
+    restoreTweet,
+    markSeen,
+    markUnseen,
+  } = useTweetLibrary()
   const {
     isForeverPinned,
     pinForever,
@@ -789,6 +997,7 @@ function TweetRow({
     .slice(0, compact ? 3 : 4)
 
   const saved = isSaved(post.id)
+  const seen = isSeen(post.id)
   const pad = compact ? 'p-4' : 'p-6 md:p-7'
 
   return (
@@ -809,6 +1018,29 @@ function TweetRow({
               undo
             </span>
           </button>
+        ) : view === 'seen' ? (
+          <>
+            <button
+              type="button"
+              onClick={() => markUnseen(post.id)}
+              className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+              title="Mark unseen (show in feed again when hiding seen)"
+            >
+              <span className="material-symbols-outlined text-[22px]">
+                visibility_off
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => trashTweet(post.id)}
+              className="p-2 rounded-lg text-on-surface-variant hover:bg-error-container/15 hover:text-error transition-colors"
+              title="Move to trash"
+            >
+              <span className="material-symbols-outlined text-[22px]">
+                delete
+              </span>
+            </button>
+          </>
         ) : view === 'forever' ? (
           <button
             type="button"
@@ -829,6 +1061,26 @@ function TweetRow({
           </button>
         ) : (
           <>
+            <button
+              type="button"
+              onClick={() => (seen ? markUnseen(post.id) : markSeen(post.id))}
+              className={`p-2 rounded-lg transition-colors ${
+                seen
+                  ? 'text-tertiary bg-tertiary-container/40'
+                  : 'text-on-surface-variant hover:bg-surface-container-low hover:text-tertiary'
+              }`}
+              title={
+                seen
+                  ? 'Mark unseen (show in feed again if hiding seen)'
+                  : 'Mark seen (hide from feed when “Hide seen” is on)'
+              }
+            >
+              <span
+                className={`material-symbols-outlined text-[22px] ${seen ? 'filled' : ''}`}
+              >
+                visibility
+              </span>
+            </button>
             <button
               type="button"
               onClick={() =>
@@ -909,6 +1161,11 @@ function TweetRow({
             Forever
           </span>
         ) : null}
+        {seen && view !== 'seen' && view !== 'forever' ? (
+          <span className="inline-block px-2.5 py-0.5 rounded-full bg-tertiary-container/50 text-tertiary text-xs font-medium">
+            Seen
+          </span>
+        ) : null}
       </div>
       <p
         className={`text-on-surface-variant mb-1 font-medium ${compact ? 'text-[11px]' : 'text-xs'}`}
@@ -935,7 +1192,10 @@ function TweetRow({
         </button>
       ) : null}
       {(view === 'saved' ||
-        (!saved && view !== 'trash' && view !== 'forever')) && (
+        (!saved &&
+          view !== 'trash' &&
+          view !== 'forever' &&
+          view !== 'seen')) && (
         <label className="block mb-2">
           <span className="sr-only">Save note</span>
           <span className="text-[10px] uppercase tracking-wide text-on-surface-variant font-semibold block mb-1">
