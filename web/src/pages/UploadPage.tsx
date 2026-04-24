@@ -13,9 +13,9 @@ export function UploadPage() {
   const [err, setErr] = useState<string | null>(null)
 
   const finishIngest = useCallback(
-    (text: string, name: string) => {
+    async (text: string, name: string) => {
       try {
-        ingestJsonText(text, name)
+        await ingestJsonText(text, name)
         setProgress(100)
         setTimeout(() => {
           setBusy(false)
@@ -43,7 +43,7 @@ export function UploadPage() {
       try {
         const text = await file.text()
         setProgress(60)
-        finishIngest(text, file.name)
+        void finishIngest(text, file.name)
       } catch {
         setBusy(false)
         setErr('Could not read file.')

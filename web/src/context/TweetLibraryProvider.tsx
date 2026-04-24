@@ -8,8 +8,6 @@ import {
 } from 'react'
 import { useCuration } from '@/context/useCuration'
 import {
-  clearTweetLibraryDoc,
-  computeArchiveKey,
   loadTweetLibraryDoc,
   saveTweetLibraryDoc,
 } from '@/lib/tweetLibraryStore'
@@ -22,12 +20,14 @@ import { snapshotWithoutPosts } from '@/lib/parseExport'
 type Marks = {
   saved: Set<string>
   trash: Set<string>
+  seen: Set<string>
   saveNotes: Record<string, string>
 }
 
 const emptyMarks = (): Marks => ({
   saved: new Set(),
   trash: new Set(),
+  seen: new Set(),
   saveNotes: {},
 })
 
@@ -43,30 +43,40 @@ function pruneNotes(
   return next
 }
 
+function pruneSeen(seen: Set<string>, validIds: Set<string>): Set<string> {
+  const next = new Set<string>()
+  for (const id of seen) {
+    if (validIds.has(id)) next.add(id)
+  }
+  return next
+}
+
 export function TweetLibraryProvider({ children }: { children: ReactNode }) {
   const {
     snapshot,
-    lastSourceName,
     hydrated: curationHydrated,
     replaceSnapshot,
+    activeArchiveId,
   } = useCuration()
   const [hydrated, setHydrated] = useState(false)
   const [view, setView] = useState<LibraryView>('default')
+  const [hideSeenInFeed, setHideSeenInFeed] = useState(true)
   const [marks, setMarks] = useState<Marks>(emptyMarks)
   const marksRef = useRef(marks)
-  const archiveKeyRef = useRef('')
+  const archiveIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     marksRef.current = marks
   }, [marks])
 
-  const persist = useCallback((next: Marks, key: string) => {
-    if (!key) return
+  const persist = useCallback((next: Marks, archiveId: string) => {
+    if (!archiveId) return
     const saveNotes = pruneNotes(next.saveNotes, next.saved)
     void saveTweetLibraryDoc({
-      archiveKey: key,
+      archiveId,
       savedIds: [...next.saved],
       trashedIds: [...next.trash],
+      seenIds: [...next.seen],
       saveNotes: Object.keys(saveNotes).length ? saveNotes : undefined,
     })
   }, [])
@@ -76,40 +86,39 @@ export function TweetLibraryProvider({ children }: { children: ReactNode }) {
     let cancelled = false
     void (async () => {
       try {
-        if (!snapshot) {
-          archiveKeyRef.current = ''
+        if (!snapshot || !activeArchiveId) {
+          archiveIdRef.current = null
           if (!cancelled) {
             setMarks(emptyMarks())
             setView('default')
           }
-          await clearTweetLibraryDoc()
+          if (!cancelled) setHydrated(true)
           return
         }
 
-        const key = computeArchiveKey({
-          generatedAt: snapshot.exportMeta.generatedAt,
-          postCount: snapshot.exportMeta.postCount,
-          lastSourceName,
-        })
-
-        const doc = await loadTweetLibraryDoc()
+        const doc = await loadTweetLibraryDoc(activeArchiveId)
         if (cancelled) return
 
-        if (doc?.archiveKey && doc.archiveKey !== key) {
-          await clearTweetLibraryDoc()
-        }
-
-        if (doc && doc.archiveKey === key) {
+        const validIds = new Set(snapshot.posts.map((p) => p.id))
+        if (doc && doc.archiveId === activeArchiveId) {
           const saveNotes = { ...(doc.saveNotes ?? {}) }
+          const saved = new Set(
+            doc.savedIds.filter((id) => validIds.has(id)),
+          )
+          const trash = new Set(
+            doc.trashedIds.filter((id) => validIds.has(id)),
+          )
+          const seen = pruneSeen(new Set(doc.seenIds ?? []), validIds)
           setMarks({
-            saved: new Set(doc.savedIds),
-            trash: new Set(doc.trashedIds),
-            saveNotes,
+            saved,
+            trash,
+            seen,
+            saveNotes: pruneNotes(saveNotes, saved),
           })
         } else {
           setMarks(emptyMarks())
         }
-        archiveKeyRef.current = key
+        archiveIdRef.current = activeArchiveId
       } finally {
         if (!cancelled) setHydrated(true)
       }
@@ -117,15 +126,15 @@ export function TweetLibraryProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [curationHydrated, snapshot, lastSourceName])
+  }, [curationHydrated, snapshot, activeArchiveId])
 
   const applyMarks = useCallback(
     (fn: (prev: Marks) => Marks) => {
-      const key = archiveKeyRef.current
-      if (!key) return
+      const id = archiveIdRef.current
+      if (!id) return
       setMarks((prev) => {
         const next = fn(prev)
-        persist(next, key)
+        persist(next, id)
         return next
       })
     },
@@ -133,18 +142,19 @@ export function TweetLibraryProvider({ children }: { children: ReactNode }) {
   )
 
   const saveTweet = useCallback(
-    (id: string, note?: string) => {
+    (tweetId: string, note?: string) => {
       applyMarks((prev) => {
         const saved = new Set(prev.saved)
         const trash = new Set(prev.trash)
-        saved.add(id)
-        trash.delete(id)
+        const seen = new Set(prev.seen)
+        saved.add(tweetId)
+        trash.delete(tweetId)
         const saveNotes = { ...prev.saveNotes }
         if (note !== undefined) {
-          if (note.trim()) saveNotes[id] = note.trim()
-          else delete saveNotes[id]
+          if (note.trim()) saveNotes[tweetId] = note.trim()
+          else delete saveNotes[tweetId]
         }
-        return { saved, trash, saveNotes }
+        return { saved, trash, seen, saveNotes }
       })
     },
     [applyMarks],
@@ -170,7 +180,12 @@ export function TweetLibraryProvider({ children }: { children: ReactNode }) {
         saved.delete(id)
         const saveNotes = { ...prev.saveNotes }
         delete saveNotes[id]
-        return { saved, trash: new Set(prev.trash), saveNotes }
+        return {
+          saved,
+          trash: new Set(prev.trash),
+          seen: new Set(prev.seen),
+          saveNotes,
+        }
       })
     },
     [applyMarks],
@@ -181,11 +196,12 @@ export function TweetLibraryProvider({ children }: { children: ReactNode }) {
       applyMarks((prev) => {
         const saved = new Set(prev.saved)
         const trash = new Set(prev.trash)
+        const seen = new Set(prev.seen)
         saved.delete(id)
         trash.add(id)
         const saveNotes = { ...prev.saveNotes }
         delete saveNotes[id]
-        return { saved, trash, saveNotes }
+        return { saved, trash, seen, saveNotes }
       })
     },
     [applyMarks],
@@ -199,6 +215,7 @@ export function TweetLibraryProvider({ children }: { children: ReactNode }) {
         return {
           saved: new Set(prev.saved),
           trash,
+          seen: new Set(prev.seen),
           saveNotes: { ...prev.saveNotes },
         }
       })
@@ -213,51 +230,76 @@ export function TweetLibraryProvider({ children }: { children: ReactNode }) {
     }))
   }, [applyMarks])
 
+  const markSeen = useCallback(
+    (id: string) => {
+      applyMarks((prev) => {
+        const seen = new Set(prev.seen)
+        seen.add(id)
+        return { ...prev, seen }
+      })
+    },
+    [applyMarks],
+  )
+
+  const markUnseen = useCallback(
+    (id: string) => {
+      applyMarks((prev) => {
+        const seen = new Set(prev.seen)
+        seen.delete(id)
+        return { ...prev, seen }
+      })
+    },
+    [applyMarks],
+  )
+
   const purgeTrashedFromArchive = useCallback(() => {
     if (!snapshot) return
+    const archiveId = archiveIdRef.current
+    if (!archiveId) return
     const prev = marksRef.current
     if (prev.trash.size === 0) return
     const remove = new Set(prev.trash)
     const nextSnap = snapshotWithoutPosts(snapshot, remove)
     replaceSnapshot(nextSnap)
-    const nextKey = computeArchiveKey({
-      generatedAt: nextSnap.exportMeta.generatedAt,
-      postCount: nextSnap.exportMeta.postCount,
-      lastSourceName,
-    })
-    archiveKeyRef.current = nextKey
-    const saved = new Set(
-      [...prev.saved].filter((id) => nextSnap.posts.some((p) => p.id === id)),
-    )
+    const validIds = new Set(nextSnap.posts.map((p) => p.id))
+    const saved = new Set([...prev.saved].filter((id) => validIds.has(id)))
     const saveNotes = pruneNotes(prev.saveNotes, saved)
-    const next = { saved, trash: new Set<string>(), saveNotes }
+    const seen = pruneSeen(prev.seen, validIds)
+    const next = { saved, trash: new Set<string>(), seen, saveNotes }
     setMarks(next)
     void saveTweetLibraryDoc({
-      archiveKey: nextKey,
+      archiveId,
       savedIds: [...saved],
       trashedIds: [],
+      seenIds: [...seen],
       saveNotes: Object.keys(saveNotes).length ? saveNotes : undefined,
     })
     setView('default')
-  }, [snapshot, replaceSnapshot, lastSourceName])
+  }, [snapshot, replaceSnapshot])
 
   const savedIds = marks.saved
   const trashedIds = marks.trash
+  const seenIds = marks.seen
   const saveNotes = marks.saveNotes
 
   const isSaved = useCallback((id: string) => savedIds.has(id), [savedIds])
   const isTrashed = useCallback((id: string) => trashedIds.has(id), [trashedIds])
+  const isSeen = useCallback((id: string) => seenIds.has(id), [seenIds])
 
   const value = useMemo(
     () => ({
       hydrated,
       view,
       setView,
+      hideSeenInFeed,
+      setHideSeenInFeed,
       savedIds,
       trashedIds,
+      seenIds,
       saveNotes,
       isSaved,
       isTrashed,
+      isSeen,
       saveTweet,
       setSaveNote,
       unsaveTweet,
@@ -265,15 +307,20 @@ export function TweetLibraryProvider({ children }: { children: ReactNode }) {
       restoreTweet,
       emptyTrash,
       purgeTrashedFromArchive,
+      markSeen,
+      markUnseen,
     }),
     [
       hydrated,
       view,
+      hideSeenInFeed,
       savedIds,
       trashedIds,
+      seenIds,
       saveNotes,
       isSaved,
       isTrashed,
+      isSeen,
       saveTweet,
       setSaveNote,
       unsaveTweet,
@@ -281,6 +328,8 @@ export function TweetLibraryProvider({ children }: { children: ReactNode }) {
       restoreTweet,
       emptyTrash,
       purgeTrashedFromArchive,
+      markSeen,
+      markUnseen,
     ],
   )
 
